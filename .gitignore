@@ -1,0 +1,39 @@
+# 依存
+node_modules/
+
+# ビルド成果物
+dist/
+dist-ssr/
+*.local
+
+# テスト・カバレッジ
+coverage/
+playwright-report/
+test-results/
+blob-report/
+.playwright/
+
+# エディタ・OS
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+*.swp
+
+# ログ
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# 環境変数
+.env
+.env.*
+!.env.example
+
+# Vite / PWA 生成物
+.vite/
+dev-dist/
