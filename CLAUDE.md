@@ -116,8 +116,10 @@ Vitest の既定環境は `node`。シミュレーションはDOM非依存のた
 2. **そのIssueからブランチを作成して切り替える。** `gh issue develop` を使うとIssueとブランチが紐づき、PR作成時に自動でIssueが閉じられる。
 
    ```bash
-   gh issue develop <番号> --base main --checkout
+   gh issue develop <番号> --name <番号>-<英語のスラッグ> --base main --checkout
    ```
+
+   **ブランチ名は必ず ASCII で明示する。** `--name` を省略するとIssueタイトルからブランチ名が生成され、日本語タイトルなら日本語のブランチ名になってしまう。`1-phase-1-survival` のように、Issue番号 + 英小文字ケバブケースにする。
 
 3. **調査結果と実装計画を提示し、ユーザーの確認を待つ。** ここで初めて計画を出す。確認なしに実装へ進まない。
 
