@@ -20,7 +20,19 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 現在の状態
 
-リポジトリには仕様書とこのファイルしかない。コード、`package.json`、テスト設定はまだ存在しない。最初の実装作業は Phase 0（プロジェクト初期化）から始まる。
+**Phase 0（技術検証）まで完了。** 次は Phase 1（生存）で、着手前に計画提示と確認が必要。
+
+実装済みの構造:
+
+- `src/simulation/` — React / Three.js 非依存。`engine/random.ts`（mulberry32）、`engine/clock.ts`（固定タイムステップ）、`engine/world.ts`（Phase 0は等速移動＋境界反射のみ）、`config/`（バランス値）
+- `src/state/simulationRuntime.ts` — シミュレーションとUIの唯一の橋渡し。Phase 1でZustandを入れてもこの境界は維持する
+- `src/state/SimulationDriver.tsx` — `useFrame` を priority 1/3 で使い、シミュレーション → 描画 → 計測確定の順序を固定する。priority 1以上のuseFrameがあるとR3Fの自動描画が止まるため、`gl.render` を明示的に呼んでいる
+- `src/world/renderers/AntInstances.tsx` — `InstancedMesh`。行列書き込みは priority 2。一時オブジェクトはモジュールスコープで使い回し、ループ内で確保しない
+- `src/analytics/perfMetrics.ts` — FPS・描画時間・更新時間の移動平均。固定長リングバッファでメモリを増やさない
+
+未実装（各Phaseで追加）: `simulation/{systems,behaviors,genetics,colony,resources,spatial}`、`persistence/`、`workers/`
+
+ESLint が `src/simulation/**` からの React / Three.js インポートを禁止している（`no-restricted-imports`）。レイヤ分離はLintで担保されているので、回避せず設計側を直すこと。
 
 ## アーキテクチャ原則
 
@@ -44,7 +56,23 @@ UI / React → Application State (Zustand) → Simulation Engine (純粋TS) → 
 
 ## 技術スタック（仕様書 §12 で確定済み）
 
-Vite / TypeScript(strict) / React / Three.js + React Three Fiber / @react-three/drei / Zustand / Dexie(IndexedDB) / Vitest + Testing Library + Playwright / vite-plugin-pwa / ESLint + Prettier
+バージョンは仕様書 §12 の表を正本とする（`package.json` と一致させること）。
+
+| 技術                                     | 版                       | 導入Phase |
+| ---------------------------------------- | ------------------------ | --------- |
+| Vite / @vitejs/plugin-react              | 8.3.0 / 6.1.1            | 0         |
+| TypeScript (strict)                      | **5.9.3**                | 0         |
+| React / React DOM                        | **19.2.8**               | 0         |
+| Three.js / @react-three/fiber / drei     | 0.186.0 / 9.7.0 / 10.7.8 | 0         |
+| Vitest / @vitest/coverage-v8             | 5.0.0                    | 0         |
+| ESLint / typescript-eslint / Prettier    | 10.10.0 / 8.70.0 / 3.9.6 | 0         |
+| Zustand                                  | 5.0.15                   | 1         |
+| Testing Library (react/jest-dom) / jsdom | 16.3.3 / 7.0.1 / 30.0.1  | 1         |
+| Playwright                               | 1.63.0                   | 1         |
+| Dexie                                    | 4.4.6                    | 5         |
+| vite-plugin-pwa                          | 1.3.0                    | 5         |
+
+**React 19.2.x と TypeScript 5.9.x は意図的に最新版より下げている。** React 19.3 は `@react-three/fiber` 9.7.0 の peer 範囲外、TypeScript 7 は `typescript-eslint` 8.70.0 の peer 範囲外。理由を確認せずに引き上げないこと。
 
 依存の追加・変更は、必要性・代替案・バンドルサイズへの影響を着手前に説明してから行う。
 
@@ -59,18 +87,19 @@ src/
 
 ## コマンド
 
-`package.json` 作成後は以下を想定（実際のスクリプト名は `package.json` で確認する）。
-
 ```bash
-npm run dev
-npm run typecheck
-npm run lint
-npm run test
-npm run test:e2e   # E2E導入済みPhase以降
-npm run build
+npm run dev        # 開発サーバー
+npm run typecheck  # tsc --noEmit
+npm run lint       # eslint .
+npm run test       # vitest run
+npm run build      # typecheck + vite build
+npm run format     # prettier --write .
 ```
 
-単一テストの実行は `npx vitest run path/to/file.test.ts`、単一E2Eは `npx playwright test path/to/spec.ts -g "テスト名"`。
+単一テストは `npx vitest run src/simulation/engine/world.test.ts`。
+`npm run test:e2e` はPhase 1でPlaywrightを導入してから追加する（単一E2Eは `npx playwright test path/to/spec.ts -g "テスト名"`）。
+
+Vitest の既定環境は `node`。シミュレーションはDOM非依存のため、これを維持する。DOMが要るテストはPhase 1でjsdomを入れてから追加する。
 
 ## 作業フロー（仕様書 §0, §16）
 

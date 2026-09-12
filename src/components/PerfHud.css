@@ -1,0 +1,29 @@
+.perf-hud {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  margin: 0;
+  padding: 10px 12px;
+  min-width: 150px;
+  border-radius: 8px;
+  background: var(--color-hud-bg);
+  color: var(--color-hud-text);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.6;
+  pointer-events: none;
+}
+
+.perf-hud__row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.perf-hud dt {
+  color: var(--color-hud-muted);
+}
+
+.perf-hud dd {
+  margin: 0;
+}

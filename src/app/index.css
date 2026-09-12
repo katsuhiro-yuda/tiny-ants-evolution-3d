@@ -1,0 +1,42 @@
+:root {
+  --color-sky-top: #dfe9f3;
+  --color-sky-bottom: #b9cfd6;
+  --color-hud-bg: rgb(24 28 32 / 78%);
+  --color-hud-text: #f2f5f7;
+  --color-hud-muted: #9fb0bb;
+
+  color-scheme: light;
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    'Hiragino Sans',
+    'Noto Sans JP',
+    sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  overflow: hidden;
+  background: linear-gradient(180deg, var(--color-sky-top), var(--color-sky-bottom));
+}
+
+/* 仕様書 §13: prefers-reduced-motion を尊重する */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
