@@ -152,7 +152,7 @@ npm run dev:stop  # 停止
 
 5. **完了時に品質ゲートを実行し、報告する。** typecheck / lint / test / build（E2E導入済みなら test:e2e も）。報告は仕様書 §16 のフォーマット。
 
-6. **PRを作成する。** 本文に `Closes #<番号>` を書く。マージ方法はユーザーの指示に従う。
+6. **PRを作成する。** `.github/pull_request_template.md` に沿って書く。本文の `Closes #` へIssue番号を入れる。マージ方法はユーザーの指示に従う。
 
 `main` へ直接コミットしない。例外は、この作業フロー自体の変更のように、Issueを立てる対象がない運用上の変更だけ。
 
