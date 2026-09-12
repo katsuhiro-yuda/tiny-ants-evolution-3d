@@ -75,7 +75,8 @@ WebGL 2
 
 ```bash
 npm install
-npm run dev        # 開発サーバー
+npm run dev        # 開発サーバー（ポート5180）
+npm run dev:stop   # 開発サーバーの停止
 npm run typecheck  # 型検査
 npm run lint       # Lint
 npm run test       # 単体テスト（Vitest）

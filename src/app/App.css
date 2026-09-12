@@ -3,3 +3,26 @@
   width: 100%;
   height: 100%;
 }
+
+/*
+ * 右側のパネル列。
+ * 個体詳細と性能HUDを縦に積み、重ならないようにする。
+ * 列自体はクリックを透過させ、3D世界の操作を妨げない。
+ */
+.app__side-panels {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 236px;
+  max-height: calc(100% - 24px);
+  overflow-y: auto;
+  pointer-events: none;
+}
+
+.app__side-panels > * {
+  pointer-events: auto;
+  flex-shrink: 0;
+}

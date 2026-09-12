@@ -85,9 +85,12 @@ export function App() {
       </Canvas>
 
       <TopBar runtime={runtime} />
-      <AntDetailPanel runtime={runtime} />
+      <div className="app__side-panels">
+        {/* HUDを先に置き、選択の有無でHUDの位置が動かないようにする */}
+        {import.meta.env.DEV && <PerfHud runtime={runtime} />}
+        <AntDetailPanel runtime={runtime} />
+      </div>
       <SelectionControls runtime={runtime} />
-      {import.meta.env.DEV && <PerfHud runtime={runtime} />}
     </div>
   );
 }

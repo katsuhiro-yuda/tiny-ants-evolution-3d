@@ -1,8 +1,5 @@
 .ant-detail {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  width: 232px;
+  width: 100%;
   padding: 12px 14px;
   border-radius: 8px;
   background: var(--color-hud-bg);
