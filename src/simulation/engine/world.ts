@@ -1,19 +1,26 @@
+import { FIELD_HALF, FIELD_MARGIN, INITIAL_ANT_COUNT } from '../config/world';
 import {
-  FIELD_HALF,
-  FIELD_MARGIN,
-  INITIAL_ANT_COUNT,
-  PHASE0_ANT_SPEED_MAX,
-  PHASE0_ANT_SPEED_MIN,
-} from '../config/world';
-import type { Ant } from '../entities/ant';
+  DECISION_INTERVAL_SECONDS,
+  INITIAL_ENERGY,
+  LIFESPAN_MAX_SECONDS,
+  LIFESPAN_MIN_SECONDS,
+  SPATIAL_CELL_SIZE,
+} from '../config/biology';
+import type { Ant, DeathRecord } from '../entities/ant';
+import type { Food } from '../resources/food';
+import { generateFood, generateTerrain } from '../resources/generate';
+import { isBlocked, type TerrainFeature } from '../resources/terrain';
+import { createUniformGrid, type UniformGrid } from '../spatial/uniformGrid';
+import { updateFoodRegrowth } from '../systems/regrowth';
+import { updateSurvival } from '../systems/survival';
 import type { Random } from '../types';
 import { createRandom } from './random';
 
 /**
  * 世界の状態と更新。
  *
- * Phase 0の責務は「固定タイムステップで決定的に進むこと」の検証に限る。
- * 採食・エネルギー・遺伝はPhase 1以降で `systems/` へ追加する。
+ * 各システムはここから順に呼ぶ。システム自体はReact・Three.jsを知らない純粋関数で、
+ * DOMなしで単体テストできる（仕様書 §12）。
  */
 export interface World {
   readonly seed: string;
@@ -22,76 +29,105 @@ export interface World {
   /** 実行済みの固定ステップ数。決定性の比較に使う。 */
   tick: number;
   ants: Ant[];
+  foods: Food[];
+  terrain: TerrainFeature[];
   random: Random;
+  /** 直近ステップで死亡した個体。イベントログと統計が参照する。 */
+  recentDeaths: DeathRecord[];
+  /** 累計死亡数。 */
+  deathCount: number;
+  /** 餌の近傍探索用グリッド。毎ステップ再構築する。 */
+  foodGrid: UniformGrid<Food>;
 }
 
 /** 蟻が移動できる範囲の限界。 */
 const BOUND = FIELD_HALF - FIELD_MARGIN;
 
+/** 地形と重ならない位置を探す試行回数。 */
+const SPAWN_ATTEMPTS = 30;
+
 /**
  * シードから世界を生成する。
- * 同一シードからは常に同一の初期配置になる（仕様書 §4, §14 Phase 0完了条件）。
+ * 同一シードからは常に同一の初期状態になる（仕様書 §4, §14）。
  */
 export function createWorld(seed: string, antCount: number = INITIAL_ANT_COUNT): World {
   const random = createRandom(seed);
+  const terrain = generateTerrain(random);
+  const foods = generateFood(random, terrain);
+  const ants = generateAnts(random, terrain, antCount);
+
+  const foodGrid = createUniformGrid<Food>(SPATIAL_CELL_SIZE);
+  foodGrid.rebuild(foods);
+
+  return {
+    seed,
+    elapsedSeconds: 0,
+    tick: 0,
+    ants,
+    foods,
+    terrain,
+    random,
+    recentDeaths: [],
+    deathCount: 0,
+    foodGrid,
+  };
+}
+
+/** 地形を避けて蟻を配置する。 */
+function generateAnts(random: Random, terrain: readonly TerrainFeature[], count: number): Ant[] {
   const ants: Ant[] = [];
 
-  for (let i = 0; i < antCount; i += 1) {
-    const heading = random.range(0, Math.PI * 2);
-    const speed = random.range(PHASE0_ANT_SPEED_MIN, PHASE0_ANT_SPEED_MAX);
+  for (let i = 0; i < count; i += 1) {
+    let x = 0;
+    let z = 0;
+
+    for (let attempt = 0; attempt < SPAWN_ATTEMPTS; attempt += 1) {
+      x = random.range(-BOUND, BOUND);
+      z = random.range(-BOUND, BOUND);
+      if (!isBlocked(terrain, x, z)) {
+        break;
+      }
+    }
+
+    const heading = random.range(-Math.PI, Math.PI);
 
     ants.push({
       id: `ant-${i}`,
       lineageId: `lineage-${i}`,
       generation: 0,
-      position: {
-        x: random.range(-BOUND, BOUND),
-        y: 0,
-        z: random.range(-BOUND, BOUND),
-      },
-      velocity: {
-        x: Math.cos(heading) * speed,
-        y: 0,
-        z: Math.sin(heading) * speed,
-      },
+      position: { x, y: 0, z },
+      velocity: { x: 0, y: 0, z: 0 },
       heading,
+      age: 0,
+      lifespan: random.range(LIFESPAN_MIN_SECONDS, LIFESPAN_MAX_SECONDS),
+      energy: INITIAL_ENERGY,
+      state: 'Explore',
+      // 意思決定タイミングを個体ごとにずらし、同一ステップへ集中させない（仕様書 §7）
+      decisionCooldown: random.range(0, DECISION_INTERVAL_SECONDS),
+      wanderHeading: heading,
     });
   }
 
-  return { seed, elapsedSeconds: 0, tick: 0, ants, random };
+  return ants;
 }
 
-/**
- * 世界を1固定ステップ進める。
- *
- * Phase 0では境界反射付きの等速直線移動のみを行う。
- * 意思決定・行動スコアはPhase 1で `behaviors/` へ実装する。
- */
+/** 世界を1固定ステップ進める。 */
 export function stepWorld(world: World, timestepSeconds: number): void {
-  for (const ant of world.ants) {
-    ant.position.x += ant.velocity.x * timestepSeconds;
-    ant.position.z += ant.velocity.z * timestepSeconds;
+  updateFoodRegrowth(world.foods, timestepSeconds);
 
-    // 境界で反射させ、フィールド外へ出さない（仕様書 §4）。
-    if (ant.position.x < -BOUND) {
-      ant.position.x = -BOUND;
-      ant.velocity.x = -ant.velocity.x;
-    } else if (ant.position.x > BOUND) {
-      ant.position.x = BOUND;
-      ant.velocity.x = -ant.velocity.x;
-    }
+  // 餌の残量は毎ステップ変わるため、探索前に再構築する
+  world.foodGrid.rebuild(world.foods);
 
-    if (ant.position.z < -BOUND) {
-      ant.position.z = -BOUND;
-      ant.velocity.z = -ant.velocity.z;
-    } else if (ant.position.z > BOUND) {
-      ant.position.z = BOUND;
-      ant.velocity.z = -ant.velocity.z;
-    }
+  updateSurvival({
+    ants: world.ants,
+    foodGrid: world.foodGrid,
+    terrain: world.terrain,
+    random: world.random,
+    timestepSeconds,
+    deaths: world.recentDeaths,
+  });
 
-    ant.heading = Math.atan2(ant.velocity.z, ant.velocity.x);
-  }
-
+  world.deathCount += world.recentDeaths.length;
   world.tick += 1;
   world.elapsedSeconds += timestepSeconds;
 }
