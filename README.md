@@ -108,4 +108,5 @@ E2E（`npm run test:e2e`）はPhase 1でPlaywrightを導入してから追加し
 ## ドキュメント
 
 - [docs/tiny-ants-claude-code-spec.md](docs/tiny-ants-claude-code-spec.md) — 開発仕様書（要件の正本）
+- [docs/backlog.md](docs/backlog.md) — 残課題（Phase完了時に更新）
 - [CLAUDE.md](CLAUDE.md) — Claude Code向けの作業ガイド
