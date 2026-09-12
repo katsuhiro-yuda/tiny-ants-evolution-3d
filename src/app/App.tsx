@@ -1,12 +1,19 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { DEFAULT_SEED, FIELD_SIZE } from '../simulation/config/world';
 import { createSimulationRuntime } from '../state/simulationRuntime';
 import { SimulationDriver } from '../state/SimulationDriver';
+import { useUiStore } from '../state/uiStore';
+import { nextAntId } from '../state/selection';
 import { CameraRig } from '../world/camera/CameraRig';
 import { WorldScene } from '../world/scene/WorldScene';
 import { AntInstances } from '../world/renderers/AntInstances';
+import { FoodInstances } from '../world/renderers/FoodInstances';
+import { TerrainFeatures } from '../world/renderers/TerrainFeatures';
 import { PerfHud } from '../components/PerfHud';
+import { TopBar } from '../components/TopBar';
+import { AntDetailPanel } from '../components/AntDetailPanel';
+import { SelectionControls } from '../components/SelectionControls';
 import { WebGLUnsupported } from '../components/WebGLUnsupported';
 import { isWebGL2Available } from '../world/scene/webglSupport';
 import './App.css';
@@ -25,6 +32,35 @@ export function App() {
   // 世界はアプリの寿命と同じ。再生成すると同一シードでも進行がリセットされる
   const runtime = useMemo(() => createSimulationRuntime(DEFAULT_SEED), []);
 
+  const togglePause = useUiStore((state) => state.togglePause);
+  const selectAnt = useUiStore((state) => state.selectAnt);
+
+  // キーボード操作（仕様書 §13「UI操作をキーボードで選択できる」）
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // 入力欄へのキー入力を奪わない
+      if (event.target instanceof HTMLInputElement) {
+        return;
+      }
+
+      if (event.code === 'Space') {
+        event.preventDefault();
+        togglePause();
+      } else if (event.code === 'Escape') {
+        selectAnt(undefined);
+      } else if (event.code === 'BracketRight' || event.key === 'n') {
+        const { selectedAntId } = useUiStore.getState();
+        selectAnt(nextAntId(runtime.world.ants, selectedAntId, 1));
+      } else if (event.code === 'BracketLeft' || event.key === 'p') {
+        const { selectedAntId } = useUiStore.getState();
+        selectAnt(nextAntId(runtime.world.ants, selectedAntId, -1));
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [togglePause, selectAnt, runtime]);
+
   if (!webgl2Available) {
     return <WebGLUnsupported />;
   }
@@ -33,18 +69,24 @@ export function App() {
     <div className="app">
       <Canvas
         camera={{ position: INITIAL_CAMERA_POSITION, fov: 45, near: 0.1, far: FIELD_SIZE * 4 }}
-        // 描画は SimulationDriver が明示的に行う
         gl={{ antialias: true }}
+        // 何もない場所をクリックしたら選択を解除する
+        onPointerMissed={() => selectAnt(undefined)}
       >
         <color attach="background" args={['#dfe9f3']} />
         <fog attach="fog" args={['#dfe9f3', FIELD_SIZE * 0.9, FIELD_SIZE * 2.2]} />
 
         <WorldScene />
+        <TerrainFeatures terrain={runtime.world.terrain} />
+        <FoodInstances runtime={runtime} />
         <AntInstances runtime={runtime} />
         <CameraRig />
         <SimulationDriver runtime={runtime} />
       </Canvas>
 
+      <TopBar runtime={runtime} />
+      <AntDetailPanel runtime={runtime} />
+      <SelectionControls runtime={runtime} />
       {import.meta.env.DEV && <PerfHud runtime={runtime} />}
     </div>
   );

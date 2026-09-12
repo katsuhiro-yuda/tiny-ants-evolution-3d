@@ -37,3 +37,12 @@ pnpm-debug.log*
 # Vite / PWA 生成物
 .vite/
 dev-dist/
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+
+# Playwright MCP
+.playwright-mcp/

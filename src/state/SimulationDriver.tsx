@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import type { SimulationRuntime } from './simulationRuntime';
+import { useUiStore } from './uiStore';
 import { FRAME_PRIORITY } from '../world/renderers/framePriority';
 
 /**
@@ -17,6 +18,12 @@ export function SimulationDriver({ runtime }: SimulationDriverProps) {
   const gl = useThree((state) => state.gl);
   const scene = useThree((state) => state.scene);
   const camera = useThree((state) => state.camera);
+  const speed = useUiStore((state) => state.speed);
+
+  // UIの再生速度をシミュレーションへ反映する
+  useEffect(() => {
+    runtime.setSpeed(speed);
+  }, [runtime, speed]);
 
   // タブがバックグラウンドから復帰したとき、経過時間を一括計算しない（仕様書 §4）
   useEffect(() => {
