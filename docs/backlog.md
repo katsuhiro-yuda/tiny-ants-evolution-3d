@@ -56,6 +56,23 @@ Phase完了時にこのファイルを更新する。MVP対象外の機能要望
 - 対応時期: **Phase 2以降**（500匹での計測でGCが問題になった場合）
 - 方針: 最適化の前に必ず計測する。必要なら `Random` を再シード可能にするか、生成器を1つ使い回す形へ変える
 
+### 使われていない定数が config に残っている
+
+- 検出: Phase 1 後 / ソース解説中に発見
+- 内容: `src/simulation/config/world.ts` の `PHASE0_ANT_SPEED_MIN` / `PHASE0_ANT_SPEED_MAX` がどこからも参照されていない。Phase 0 では等速直線運動の速度として使っていたが、Phase 1 で `world.ts` を書き直した際に速度が `config/biology.ts` の `MAX_SPEED` へ移り、取り残された
+- 影響: 動作への影響はない。ただしコメントに「Phase 2でGenome.speedから算出するようになる」と書いてあるため、今後読んだ人が現役の値だと誤解する
+- なぜ検出されなかったか: `export` した定数は他ファイルから使われうるため、TypeScript の `noUnusedLocals` も ESLint も未使用を報告しない。**config へ値を集約すると、消し忘れても誰も困らない状態になりやすい**
+- 対応時期: **Phase 2 着手時**。Genome 導入で `config/world.ts` を触るため、そのときに削除する
+- 方針: 削除する。あわせて config 全体の参照元を一度確認する
+
+### 移動限界 `BOUND` の計算が3箇所に重複している
+
+- 検出: Phase 1 後 / ソース解説中に発見
+- 内容: `FIELD_HALF - FIELD_MARGIN` の計算が `simulation/engine/world.ts`、`simulation/systems/movement.ts`、`simulation/resources/generate.ts` にそれぞれ書かれている
+- 影響: 現状は値が一致しているため問題ない。片方だけ変更すると、蟻の移動範囲と資源の配置範囲がずれる
+- 対応時期: **Phase 2 着手時**
+- 方針: `movement.ts` が公開している `MOVEMENT_BOUND` へ寄せるか、`config/world.ts` で導出して1箇所にする
+
 ## 対応済み
 
 （なし）
