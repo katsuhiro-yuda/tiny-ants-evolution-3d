@@ -163,6 +163,67 @@ describe('decideBehavior', () => {
 
     expect(decideBehavior(ctx)).toBe(decideBehavior(ctx));
   });
+
+  it('noise を変えると選ばれる行動が変わる', () => {
+    // ゆらぎを全候補へ一律加算していると正のスコア同士の順位が変わらないため、
+    // 結果は必ず1種類になる。この欠陥があればこのテストは落ちる
+    const chosen = new Set<string>();
+    for (let i = 0; i <= 100; i += 1) {
+      chosen.add(decideBehavior(context({ energyRatio: SATIATED_RATIO, noise: i / 100 })));
+    }
+
+    expect(chosen.size).toBeGreaterThan(1);
+  });
+
+  it('拮抗する Explore と Rest はどちらも選ばれうる', () => {
+    // energyRatio = SATIATED_RATIO では Rest(0.35) と Explore(0.3) の差が NOISE_WEIGHT 未満になる
+    const scores = scoreAll(context({ energyRatio: SATIATED_RATIO }));
+    expect(scores.Rest).toBeGreaterThan(0);
+    expect(scores.Explore).toBeGreaterThan(0);
+
+    const counts = { Explore: 0, Rest: 0 };
+    for (let i = 0; i <= 200; i += 1) {
+      const chosen = decideBehavior(context({ energyRatio: SATIATED_RATIO, noise: i / 200 }));
+      expect(['Explore', 'Rest']).toContain(chosen);
+      counts[chosen as 'Explore' | 'Rest'] += 1;
+    }
+
+    expect(counts.Explore).toBeGreaterThan(0);
+    expect(counts.Rest).toBeGreaterThan(0);
+  });
+
+  it('スコア差が大きければ noise では逆転しない', () => {
+    // ゆらぎ幅を超える差は保たれること。ランダム性が強すぎないことの担保
+    for (let i = 0; i <= 100; i += 1) {
+      const chosen = decideBehavior(
+        context({ energyRatio: 0.2, visibleFood: food, distanceToFood: 0.3, noise: i / 100 }),
+      );
+      expect(chosen).toBe('Eat');
+    }
+  });
+
+  it('スコア0の行動は noise をどう変えても選ばれない', () => {
+    // 餌が見えないので SeekFood / Eat は常にスコア0。満腹でないので Rest も0
+    for (let i = 0; i <= 100; i += 1) {
+      const ctx = context({ energyRatio: 0.5, noise: i / 100 });
+      const scores = scoreAll(ctx);
+
+      expect(scores.SeekFood).toBe(0);
+      expect(scores.Eat).toBe(0);
+      expect(scores.Rest).toBe(0);
+      expect(decideBehavior(ctx)).toBe('Explore');
+    }
+  });
+
+  it('同じ noise からは毎回同じ行動を返す（拮抗する状況でも決定的）', () => {
+    for (let i = 0; i <= 50; i += 1) {
+      const noise = i / 50;
+      const first = decideBehavior(context({ energyRatio: SATIATED_RATIO, noise }));
+      const second = decideBehavior(context({ energyRatio: SATIATED_RATIO, noise }));
+
+      expect(second).toBe(first);
+    }
+  });
 });
 
 describe('視界外を参照しない構造', () => {

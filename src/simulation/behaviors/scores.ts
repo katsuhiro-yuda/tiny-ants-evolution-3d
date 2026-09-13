@@ -1,3 +1,4 @@
+import { createRandom } from '../engine/random';
 import { FOOD_REACH } from '../config/resources';
 import { HUNGER_THRESHOLD_RATIO, SATIATED_RATIO, VISION_RANGE } from '../config/biology';
 import type { AntBehaviorState, DecisionContext } from './types';
@@ -79,19 +80,43 @@ export function scoreAll(context: DecisionContext): Record<AntBehaviorState, num
 }
 
 /**
+ * ゆらぎ用の乱数種。0〜1の noise を32bit整数へ広げる。
+ *
+ * mulberry32 は隣接する種でも十分に撹拌されるため、個体ごとに1つ引いた noise から
+ * 行動ごとに独立した列を取り出せる。`Math.sin` などの場当たりなハッシュは使わない（仕様書 §12）。
+ */
+function noiseSeed(noise: number): number {
+  const clamped = Math.min(1, Math.max(0, noise));
+  return Math.round(clamped * 0xffffffff) >>> 0;
+}
+
+/**
  * 最高スコアの行動を選ぶ。小さなランダム性を加える（仕様書 §7）。
  * スコアが同点の場合は Explore 側へ寄せず、宣言順で安定させる。
+ *
+ * ゆらぎは「行動ごとに独立した値」でなければならない。
+ * 全候補へ同じ値を一律加算すると、正のスコア同士の差が保たれたまま平行移動するだけで
+ * 順位が一切変わらず、noise が意思決定へ影響しなくなるため。
+ *
+ * context.noise を種とした生成器から候補ごとに引き直すことで、
+ * 同じ DecisionContext からは常に同じ行動が返る（決定性）ことも同時に満たす。
  */
 export function decideBehavior(context: DecisionContext): AntBehaviorState {
   const scores = scoreAll(context);
-  const noise = context.noise * NOISE_WEIGHT;
+  // 種が同じなら同じ列になる。候補数に依存しないため、Phase 3 で Hunt / Flee が増えても動く
+  const jitterSource = createRandom(noiseSeed(context.noise));
 
   let best: AntBehaviorState = 'Explore';
   let bestScore = Number.NEGATIVE_INFINITY;
 
   for (const [state, score] of Object.entries(scores) as [AntBehaviorState, number][]) {
-    // スコア0の行動は成立していないため、ゆらぎで選ばれないようにする
-    const adjusted = score > 0 ? score + noise : score;
+    // 引く回数を候補の成否で変えない。こうすると、ある行動へ割り当たるゆらぎが
+    // 「他の行動が成立しているかどうか」に左右されず、宣言順だけで決まる
+    const jitter = jitterSource.next() * NOISE_WEIGHT;
+
+    // スコア0の行動は成立していない。ゆらぎは常に0以上なので、
+    // 加算対象から外しておけば逆転して選ばれることはない
+    const adjusted = score > 0 ? score + jitter : score;
     if (adjusted > bestScore) {
       bestScore = adjusted;
       best = state;
