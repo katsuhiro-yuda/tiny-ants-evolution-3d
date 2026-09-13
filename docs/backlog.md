@@ -118,6 +118,15 @@ Phase完了時にこのファイルを更新する。MVP対象外の機能要望
 - 対応時期: **Phase 3 着手時**（資源が増えるタイミング）。それより早く気づいたら直してよい
 - 方針: `worldStats.ts` で `isEdible` を使う
 
+### `SimulationRuntime.getSpeed` が使われていない
+
+- 検出: Phase 1 後 / ソース解説中に発見
+- 内容: `src/state/simulationRuntime.ts` の `getSpeed` を呼んでいる箇所がない。再生速度は Zustand の `uiStore` が正本で、`SimulationDriver` が `setSpeed` で runtime へ流す一方向のため、読み返す必要がない
+- 影響: なし。ただしインターフェースに未使用のメソッドが残る
+- 判断が必要な点: setter があれば getter もあるという対称性で残す考え方もある。Phase 5 のセーブ・ロードで「現在の速度を保存する」なら必要になりうる
+- 対応時期: **Phase 5 の保存仕様を決めるとき**に判断する。それまでは残す
+- 方針: 保存対象に含めないなら削除する
+
 ## 対応済み
 
 （なし）
