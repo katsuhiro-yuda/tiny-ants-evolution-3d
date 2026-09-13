@@ -81,6 +81,20 @@ Phase完了時にこのファイルを更新する。MVP対象外の機能要望
 - 対応時期: **Phase 2 着手時**（`config` の整理とあわせて）
 - 方針: `: number` を付ける。あわせて `@typescript-eslint/explicit-module-boundary-types` の導入を検討すると、今後は Lint で防げる
 
+### `generate.ts` に単体テストがない
+
+- 検出: Phase 1 後 / ソース解説中に発見
+- 内容: `src/simulation/resources/generate.ts` に対応するテストファイルがない。`computeRegrowthRate` はテストのために `export` されているが、ファイル外からの参照が1つもない
+- 現状の担保: `world.test.ts` が間接的に「地形が生成される」「餌と蟻が地形の上に配置されない」「同一シードで同一配置」を確認している
+- 未検証の箇所:
+  - `computeRegrowthRate` の線形補間（水際で2.2倍、影響半径の外で1.0倍、水場なしで1.0倍）
+  - `generateTerrain` の重なり判定（地形同士が重ならないこと）
+  - 試行上限に達したとき、その地形を生成せず処理が続くこと
+  - 円がフィールド境界からはみ出さないこと
+- 影響: 餌の再生ボーナスはバランスに直結する。補間式を壊しても現状のテストでは落ちない
+- 対応時期: **Phase 2 着手時**
+- 方針: `generate.test.ts` を追加する。`computeRegrowthRate` は純粋関数なので単体で検証できる
+
 ## 対応済み
 
 （なし）
