@@ -110,6 +110,14 @@ Phase完了時にこのファイルを更新する。MVP対象外の機能要望
 - 対応時期: **Phase 2 着手時**
 - 方針: `movement.test.ts` を追加する。`survival.ts` は世界の状態に依存するため `world.test.ts` の統合テストで担保する方針を維持し、こちらは純粋関数の単体テストに絞る
 
+### 「食べられる餌」の判定が2箇所に分かれている
+
+- 検出: Phase 1 後 / ソース解説中に発見
+- 内容: `resources/food.ts` に `isEdible(food)` があり `systems/survival.ts` は使っているが、`queries/worldStats.ts` は `food.energy > 0` を直書きしている
+- 影響: 現状は結果が同じ。Phase 3 で条件が増えると（腐敗・毒など）、統計側だけ古い判定のまま残り、画面の餌の数と蟻が実際に食べられる数がずれる
+- 対応時期: **Phase 3 着手時**（資源が増えるタイミング）。それより早く気づいたら直してよい
+- 方針: `worldStats.ts` で `isEdible` を使う
+
 ## 対応済み
 
 （なし）
