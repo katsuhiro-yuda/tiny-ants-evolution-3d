@@ -73,6 +73,14 @@ Phase完了時にこのファイルを更新する。MVP対象外の機能要望
 - 対応時期: **Phase 2 着手時**
 - 方針: `movement.ts` が公開している `MOVEMENT_BOUND` へ寄せるか、`config/world.ts` で導出して1箇所にする
 
+### `distanceToNearestWater` に戻り値の型注釈がない
+
+- 検出: Phase 1 後 / ソース解説中に発見
+- 内容: `src/simulation/resources/terrain.ts` の `distanceToNearestWater` だけ戻り値の型注釈がない。推論で `number` になるため動作と型検査に問題はないが、simulation 層の他の公開関数はすべて明示しており不統一
+- 影響: 実装変更で戻り値の型が意図せず変わっても検出できない
+- 対応時期: **Phase 2 着手時**（`config` の整理とあわせて）
+- 方針: `: number` を付ける。あわせて `@typescript-eslint/explicit-module-boundary-types` の導入を検討すると、今後は Lint で防げる
+
 ## 対応済み
 
 （なし）
