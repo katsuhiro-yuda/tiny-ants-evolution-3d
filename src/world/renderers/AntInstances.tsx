@@ -3,7 +3,7 @@ import { useFrame, type ThreeEvent } from '@react-three/fiber';
 import { Color, Matrix4, Object3D } from 'three';
 import type { InstancedMesh } from 'three';
 import { ANT_BASE_LENGTH } from '../../simulation/config/world';
-import { MAX_POPULATION } from '../../simulation/config/genetics';
+import { DIET_THRESHOLD, MAX_POPULATION } from '../../simulation/config/genetics';
 import type { Ant } from '../../simulation/entities/ant';
 import type { SimulationRuntime } from '../../state/simulationRuntime';
 import { useUiStore } from '../../state/uiStore';
@@ -22,9 +22,26 @@ import { FRAME_PRIORITY } from './framePriority';
 /** 体の基本色。明度は longevity で変える。 */
 const BODY_HUE = new Color('#4a3524');
 
+/**
+ * 体色の明度の幅。longevity=0 で暗く、1 で明るくなる。
+ * 形質は集団の中央付近に集まりやすいため、狭い幅では個体差が色に出ない。
+ */
+const BRIGHTNESS_MIN = 0.6;
+const BRIGHTNESS_RANGE = 0.9;
+
 /** 腹の色。食性（植物消化 - 肉消化）で緑と赤の間を補間する。 */
-const HERBIVORE_COLOR = new Color('#5f7a35');
-const CARNIVORE_COLOR = new Color('#8f3b30');
+const HERBIVORE_COLOR = new Color('#6f9a2e');
+const CARNIVORE_COLOR = new Color('#b03a28');
+
+/**
+ * 腹の色が緑・赤へ振り切る消化形質の差。
+ *
+ * 形質の差は実際には ±0.2 程度にしか広がらないため、-1〜1 を色域へ割り当てると
+ * 全個体が中間色（茶）になってしまう。食性ラベルの閾値を基準に取ることで、
+ * 「草食型」と判定される個体が緑、「肉食型」が赤として見える。
+ * 閾値を超えた個体の差も残るよう、幅は閾値より少し広くする。
+ */
+const DIET_COLOR_RANGE = DIET_THRESHOLD * 1.5;
 
 /** 選択中の個体を示す色。 */
 const SELECTED_COLOR = new Color('#ff8f3f');
@@ -56,8 +73,12 @@ export function AntInstances({ runtime }: AntInstancesProps) {
    * 前フレームで書き込んだスロット数。
    * 毎フレーム容量ぶん（上限500×3部位）を走査すると、個体が少ない間も最大の
    * コストがかかる。生存している個体ぶんだけ書き、減った差分だけを隠す。
+   *
+   * 初期値は容量そのもの。InstancedMesh の行列は単位行列で初期化されるため、
+   * 一度も書き込まないスロットは原点に等倍で描画されてしまう。
+   * 最初の1回だけ全スロットを走査して潰し、以降は差分だけを処理する。
    */
-  const writtenCount = useRef(0);
+  const writtenCount = useRef(MAX_POPULATION);
   const selectAnt = useUiStore((state) => state.selectAnt);
 
   // 繁殖で個体数が増えるため、シミュレーション側の上限ぶん確保する。
@@ -272,13 +293,16 @@ function hideInstance(mesh: InstancedMesh, index: number): void {
 /** 体色。寿命が長い個体ほど明るい（仕様書 §5「longevity: 明度」）。 */
 function bodyColor(ant: Ant, multiplier = 1): Color {
   color.copy(BODY_HUE);
-  return color.multiplyScalar((0.75 + ant.genome.longevity * 0.55) * multiplier);
+  return color.multiplyScalar(
+    (BRIGHTNESS_MIN + ant.genome.longevity * BRIGHTNESS_RANGE) * multiplier,
+  );
 }
 
 /** 差し色。植物消化と肉消化の差で緑と赤の間を補間する（仕様書 §5, §11）。 */
 function dietColor(ant: Ant): Color {
-  // -1（完全な肉食）〜1（完全な草食）を 0〜1 へ写す
-  const balance = (ant.genome.plantDigestion - ant.genome.meatDigestion + 1) / 2;
+  const difference = ant.genome.plantDigestion - ant.genome.meatDigestion;
+  // 肉食側へ振り切ると0、草食側へ振り切ると1
+  const balance = Math.min(1, Math.max(0, difference / (DIET_COLOR_RANGE * 2) + 0.5));
 
   color.copy(CARNIVORE_COLOR);
   return color.lerp(HERBIVORE_COLOR, balance);
