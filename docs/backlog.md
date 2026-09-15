@@ -166,6 +166,26 @@ Phase完了時にこのファイルを更新する。MVP対象外の機能要望
 - 対応時期: **Phase 5**（アクセシビリティ対応をまとめて行うPhase）
 - 方針: `window.matchMedia('(prefers-reduced-motion: reduce)')` を参照し、有効なら `enableDamping` を false にする。設定変更の監視（`addEventListener('change')`）も行う
 
+### `InstancedMesh` の容量が初期個体数で固定されている（Phase 2 で必ず対処が必要）
+
+- 検出: Phase 1 後 / ソース解説中に発見
+- 内容: `world/renderers/AntInstances.tsx` の `capacity = INITIAL_ANT_COUNT`（100）で固定。`InstancedMesh` は生成時にインスタンス数が決まり、後から増やせない
+- 現状: Phase 1 は繁殖がなく個体数が減る一方なので成立している
+- **Phase 2 で破綻する**: 繁殖が入ると個体数が100を超え、101匹目以降が描画されない
+- 対応時期: **Phase 2 で必須**
+- 方針の候補:
+  - 余裕を持った上限（例: 500〜1000）で確保し、超過分は描画しない。性能目標が「500匹で30FPS」なので上限自体は妥当
+  - 上限到達時にメッシュを作り直す。フレーム落ちが発生するため、発生頻度を抑える工夫が要る
+  - あわせて `FoodInstances.tsx` も確認する（餌は配列長が固定なので現状は問題ない）
+
+### `AntInstances.tsx` に同一モジュールからの重複インポートがある
+
+- 検出: Phase 1 後 / ソース解説中に発見
+- 内容: `ANT_BASE_LENGTH` と `INITIAL_ANT_COUNT` を `config/world` から2行に分けてインポートしている
+- 影響: なし。動作も Lint も通る
+- 対応時期: 次に同ファイルを触るとき
+- 方針: 1行にまとめる。`eslint-plugin-import` の `no-duplicates` を入れれば自動で防げる
+
 ## 対応済み
 
 （なし）
