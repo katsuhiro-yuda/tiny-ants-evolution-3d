@@ -1,18 +1,27 @@
 import { describe, expect, it } from 'vitest';
 import { headingTo, moveAnt, normalizeAngle, turnToward } from './movement';
 import { FIELD_BOUND } from '../config/world';
-import { MAX_TURN_RATE } from '../config/biology';
+import { createInitialGenome } from '../genetics/genome';
+import { createDerivedTraits } from '../genetics/traits';
+import { createRandom } from '../engine/random';
 import type { Ant } from '../entities/ant';
 import type { TerrainFeature } from '../resources/terrain';
 
 const TIMESTEP = 1 / 60;
 
+/** 旋回速度の検証で使う基準値。形質に依存しない値を明示的に与える。 */
+const TURN_RATE = Math.PI;
+
 /** 旋回と移動の検証に必要な最小限の蟻を作る。 */
 function makeAnt(overrides: Partial<Ant> = {}): Ant {
+  const genome = createInitialGenome(createRandom('movement-test'));
+
   return {
     id: 'ant-test',
     lineageId: 'lineage-test',
     generation: 0,
+    genome,
+    traits: { ...createDerivedTraits(genome), turnRate: TURN_RATE },
     position: { x: 0, y: 0, z: 0 },
     velocity: { x: 0, y: 0, z: 0 },
     heading: 0,
@@ -22,6 +31,7 @@ function makeAnt(overrides: Partial<Ant> = {}): Ant {
     state: 'Explore',
     decisionCooldown: 0,
     wanderHeading: 0,
+    reproductionCooldown: 0,
     ...overrides,
   };
 }
@@ -59,28 +69,28 @@ describe('normalizeAngle', () => {
 describe('turnToward', () => {
   it('旋回上限内なら目標方位へ到達する', () => {
     const target = 0.01;
-    expect(turnToward(0, target, TIMESTEP)).toBeCloseTo(target, 10);
+    expect(turnToward(0, target, TURN_RATE, TIMESTEP)).toBeCloseTo(target, 10);
   });
 
   it('1ステップの旋回量が上限を超えない', () => {
-    const result = turnToward(0, Math.PI, TIMESTEP);
-    expect(Math.abs(result)).toBeCloseTo(MAX_TURN_RATE * TIMESTEP, 10);
+    const result = turnToward(0, Math.PI, TURN_RATE, TIMESTEP);
+    expect(Math.abs(result)).toBeCloseTo(TURN_RATE * TIMESTEP, 10);
   });
 
   it('目標を行き過ぎない', () => {
     // 上限ぎりぎりの差分。行き過ぎると符号が反転して振動する
-    const target = MAX_TURN_RATE * TIMESTEP * 0.9;
-    expect(turnToward(0, target, TIMESTEP)).toBeCloseTo(target, 10);
+    const target = TURN_RATE * TIMESTEP * 0.9;
+    expect(turnToward(0, target, TURN_RATE, TIMESTEP)).toBeCloseTo(target, 10);
   });
 
   it('境界をまたぐときに遠回りしない', () => {
     // 3.0 から -3.0 への最短経路は +側（π をまたぐ）で、差は約0.28
-    const result = turnToward(3.0, -3.0, TIMESTEP);
+    const result = turnToward(3.0, -3.0, TURN_RATE, TIMESTEP);
     expect(result).toBeGreaterThan(3.0);
   });
 
   it('戻り値が常に -π〜π に収まる', () => {
-    const result = turnToward(3.1, -3.1, TIMESTEP);
+    const result = turnToward(3.1, -3.1, TURN_RATE, TIMESTEP);
     expect(result).toBeGreaterThanOrEqual(-Math.PI);
     expect(result).toBeLessThanOrEqual(Math.PI);
   });

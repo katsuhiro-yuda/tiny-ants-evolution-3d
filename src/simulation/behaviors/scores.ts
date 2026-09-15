@@ -1,6 +1,6 @@
 import { createRandom } from '../engine/random';
 import { FOOD_REACH } from '../config/resources';
-import { HUNGER_THRESHOLD_RATIO, SATIATED_RATIO, VISION_RANGE } from '../config/biology';
+import { HUNGER_THRESHOLD_RATIO, SATIATED_RATIO } from '../config/biology';
 import type { AntBehaviorState, DecisionContext } from './types';
 
 /**
@@ -12,6 +12,12 @@ import type { AntBehaviorState, DecisionContext } from './types';
 
 /** スコアのゆらぎ幅。大きすぎると行動が安定しない。 */
 const NOISE_WEIGHT = 0.12;
+
+/**
+ * 繁殖のスコア。届く餌があるとき（Eat は1.8以上）はそちらを優先し、
+ * 探索・休息よりは確実に上へ来る値にする。
+ */
+const REPRODUCE_SCORE = 1.5;
 
 /** 空腹度（0=満腹, 1=空腹）。 */
 export function hungerOf(energyRatio: number): number {
@@ -35,7 +41,7 @@ export function scoreSeekFood(context: DecisionContext): number {
   }
 
   const hunger = hungerOf(context.energyRatio);
-  const proximity = 1 - Math.min(1, context.distanceToFood / VISION_RANGE);
+  const proximity = 1 - Math.min(1, context.distanceToFood / context.visionRange);
 
   // 満腹でも近くに餌があれば多少は寄る
   return hunger * 1.4 + proximity * 0.35;
@@ -69,6 +75,14 @@ export function scoreRest(context: DecisionContext): number {
   return 0.35 + surplus * 0.5;
 }
 
+/**
+ * 繁殖: 条件を満たしていれば選ぶ。
+ * 条件（成熟・エネルギー・クールダウン）の判定は繁殖システム側が行う。
+ */
+export function scoreReproduce(context: DecisionContext): number {
+  return context.canReproduce ? REPRODUCE_SCORE : 0;
+}
+
 /** 全行動のスコアを算出する。デバッグと個体詳細の表示にも使う。 */
 export function scoreAll(context: DecisionContext): Record<AntBehaviorState, number> {
   return {
@@ -76,6 +90,7 @@ export function scoreAll(context: DecisionContext): Record<AntBehaviorState, num
     SeekFood: scoreSeekFood(context),
     Eat: scoreEat(context),
     Rest: scoreRest(context),
+    Reproduce: scoreReproduce(context),
   };
 }
 

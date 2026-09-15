@@ -21,6 +21,7 @@ const STATE_COLORS: Record<AntBehaviorState, Color> = {
   SeekFood: new Color('#7a5c2e'),
   Eat: new Color('#4f7a3a'),
   Rest: new Color('#4a4a58'),
+  Reproduce: new Color('#8a4f7a'),
 };
 
 /** 選択中の個体を示す色。 */

@@ -11,7 +11,10 @@ import {
 import type { DecisionContext } from './types';
 import type { Food } from '../resources/food';
 import { FOOD_REACH } from '../config/resources';
-import { HUNGER_THRESHOLD_RATIO, SATIATED_RATIO, VISION_RANGE } from '../config/biology';
+import { HUNGER_THRESHOLD_RATIO, SATIATED_RATIO } from '../config/biology';
+
+/** 検証で使う視界半径。個体ごとに異なるため、テストでは固定値を与える。 */
+const VISION_RANGE = 12;
 
 const food: Food = {
   id: 'food-1',
@@ -27,6 +30,8 @@ function context(overrides: Partial<DecisionContext> = {}): DecisionContext {
     energyRatio: 0.5,
     visibleFood: undefined,
     distanceToFood: undefined,
+    visionRange: VISION_RANGE,
+    canReproduce: false,
     noise: 0,
     ...overrides,
   };
@@ -232,6 +237,13 @@ describe('視界外を参照しない構造', () => {
     // 視界外の餌を渡す手段がないため、意思決定は視界内の情報だけで完結する
     const keys = Object.keys(context()).sort();
 
-    expect(keys).toEqual(['distanceToFood', 'energyRatio', 'noise', 'visibleFood']);
+    expect(keys).toEqual([
+      'canReproduce',
+      'distanceToFood',
+      'energyRatio',
+      'noise',
+      'visibleFood',
+      'visionRange',
+    ]);
   });
 });

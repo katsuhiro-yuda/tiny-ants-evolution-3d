@@ -33,7 +33,7 @@ export function useAntSummary(
       const stats = runtime.getStatsSnapshot();
       if (stats !== cachedStats) {
         cachedStats = stats;
-        cachedSummary = findAntSummary(runtime.world.ants, antId);
+        cachedSummary = findAntSummary(runtime.world.ants, antId, stats.featureThresholds);
       }
       return cachedSummary;
     };
