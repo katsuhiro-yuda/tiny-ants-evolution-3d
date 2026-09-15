@@ -127,6 +127,15 @@ Phase完了時にこのファイルを更新する。MVP対象外の機能要望
 - 対応時期: **Phase 5 の保存仕様を決めるとき**に判断する。それまでは残す
 - 方針: 保存対象に含めないなら削除する
 
+### `framePriority.ts` の置き場所で state ↔ world が双方向依存になっている
+
+- 検出: Phase 1 後 / ソース解説中に発見
+- 内容: `FRAME_PRIORITY` が `src/world/renderers/` にあり、`state/SimulationDriver.tsx` がそれを参照している。一方 `world/renderers/*` は `state/simulationRuntime` と `state/uiStore` を参照しており、2つの層が相互に依存している
+- 影響: 型と定数だけなので循環インポートにはならず、動作に問題はない。ただし依存の向きが一方向でないため、層の境界が曖昧になる
+- 判断: フレームの実行順序は「描画」より「アプリ全体の進行制御」に属する。`src/state/` へ移すか、両層から独立した場所へ置くのが自然
+- 対応時期: **Phase 4 着手時**（コロニー・フェロモンのレンダラーが増え、priority を参照する箇所が増えるタイミング）
+- 方針: `src/state/framePriority.ts` へ移動する。`world → state` の一方向に揃える
+
 ## 対応済み
 
 （なし）
