@@ -13,6 +13,7 @@ import { TerrainFeatures } from '../world/renderers/TerrainFeatures';
 import { PerfHud } from '../components/PerfHud';
 import { TopBar } from '../components/TopBar';
 import { AntDetailPanel } from '../components/AntDetailPanel';
+import { StatsPanel } from '../components/StatsPanel';
 import { SelectionControls } from '../components/SelectionControls';
 import { WebGLUnsupported } from '../components/WebGLUnsupported';
 import { isWebGL2Available } from '../world/scene/webglSupport';
@@ -90,7 +91,11 @@ export function App() {
         {import.meta.env.DEV && <PerfHud runtime={runtime} />}
         <AntDetailPanel runtime={runtime} />
       </div>
-      <SelectionControls runtime={runtime} />
+      {/* 左下のパネル列。重ならないよう縦に積む */}
+      <div className="app__bottom-panels">
+        <SelectionControls runtime={runtime} />
+        <StatsPanel runtime={runtime} />
+      </div>
     </div>
   );
 }
