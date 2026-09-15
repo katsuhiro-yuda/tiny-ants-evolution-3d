@@ -1,0 +1,43 @@
+import { useMemo, useSyncExternalStore } from 'react';
+import type { SimulationRuntime } from './simulationRuntime';
+import type { WorldStats } from '../simulation/queries/worldStats';
+import { findAntSummary, type AntSummary } from '../simulation/queries/antSummary';
+
+/**
+ * シミュレーションの集計値をReactへ流す。
+ *
+ * 毎ステップ再描画するとUI側が律速になるため、runtime 側で間引いた
+ * スナップショットだけを購読する（仕様書 §13）。
+ */
+export function useWorldStats(runtime: SimulationRuntime): WorldStats {
+  return useSyncExternalStore(runtime.subscribeStats, runtime.getStatsSnapshot);
+}
+
+/**
+ * 選択個体の表示用ビューを購読する。
+ *
+ * `useSyncExternalStore` の getSnapshot は、状態が変わっていない限り
+ * 同じ参照を返さなければ無限ループになる。個体ビューは呼び出しごとに
+ * 新しいオブジェクトになるため、統計スナップショットの更新を区切りとして
+ * キャッシュする。
+ */
+export function useAntSummary(
+  runtime: SimulationRuntime,
+  antId: string | undefined,
+): AntSummary | undefined {
+  const getSnapshot = useMemo(() => {
+    let cachedStats: WorldStats | undefined;
+    let cachedSummary: AntSummary | undefined;
+
+    return (): AntSummary | undefined => {
+      const stats = runtime.getStatsSnapshot();
+      if (stats !== cachedStats) {
+        cachedStats = stats;
+        cachedSummary = findAntSummary(runtime.world.ants, antId);
+      }
+      return cachedSummary;
+    };
+  }, [runtime, antId]);
+
+  return useSyncExternalStore(runtime.subscribeStats, getSnapshot);
+}

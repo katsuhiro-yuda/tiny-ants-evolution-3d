@@ -20,19 +20,31 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 現在の状態
 
-**Phase 0（技術検証）まで完了。** 次は Phase 1（生存）で、着手前に計画提示と確認が必要。
+**Phase 1（生存）まで完了。** 次は Phase 2（進化）で、着手前にIssue作成・ブランチ作成・計画提示が必要。
 
 実装済みの構造:
 
-- `src/simulation/` — React / Three.js 非依存。`engine/random.ts`（mulberry32）、`engine/clock.ts`（固定タイムステップ）、`engine/world.ts`（Phase 0は等速移動＋境界反射のみ）、`config/`（バランス値）
-- `src/state/simulationRuntime.ts` — シミュレーションとUIの唯一の橋渡し。Phase 1でZustandを入れてもこの境界は維持する
+- `src/simulation/` — React / Three.js 非依存。ESLint の `no-restricted-imports` で依存を禁止しているので、回避せず設計側を直すこと
+  - `engine/` — シード付き乱数（mulberry32）、固定タイムステップ、`world.ts`（各システムを順に呼ぶ）
+  - `spatial/uniformGrid.ts` — 近傍探索。セルサイズ＝想定最大視界で3×3セルに収める。毎ステップ再構築
+  - `systems/` — 代謝、移動、餌の再生、`survival.ts`（意思決定→移動→採食→代謝→死亡判定）
+  - `behaviors/` — 行動スコア。`DecisionContext` には視界内の餌しか入らず、視界外参照を型で防ぐ
+  - `resources/` — 餌・地形。餌は食べ尽くしても消さず再生待ちにする（配列長を固定に保つ）
+  - `queries/` — UI向けの読み取り専用ビュー。表示用の整形はここでだけ行う
+  - `config/` — バランス値。`resources.ts` の餌の供給量は慎重に調整済み（下記）
+- `src/state/` — `simulationRuntime.ts` がシミュレーションとUIの唯一の橋渡し。`uiStore.ts`（Zustand）は選択個体と再生速度だけを持つ
 - `src/state/SimulationDriver.tsx` — `useFrame` を priority 1/3 で使い、シミュレーション → 描画 → 計測確定の順序を固定する。priority 1以上のuseFrameがあるとR3Fの自動描画が止まるため、`gl.render` を明示的に呼んでいる
-- `src/world/renderers/AntInstances.tsx` — `InstancedMesh`。行列書き込みは priority 2。一時オブジェクトはモジュールスコープで使い回し、ループ内で確保しない
-- `src/analytics/perfMetrics.ts` — FPS・描画時間・更新時間の移動平均。固定長リングバッファでメモリを増やさない
+- `src/world/renderers/` — `InstancedMesh`。行列書き込みは priority 2。一時オブジェクトはモジュールスコープで使い回し、ループ内で確保しない
+- `src/analytics/perfMetrics.ts` — 固定長リングバッファでメモリを増やさない
+- `e2e/` — Playwright。`helpers.ts` の `gotoApp` を必ず経由する
 
-未実装（各Phaseで追加）: `simulation/{systems,behaviors,genetics,colony,resources,spatial}`、`persistence/`、`workers/`
+未実装（各Phaseで追加）: `simulation/{genetics,colony}`、`persistence/`、`workers/`
 
-ESLint が `src/simulation/**` からの React / Three.js インポートを禁止している（`no-restricted-imports`）。レイヤ分離はLintで担保されているので、回避せず設計側を直すこと。
+### 注意が必要な箇所
+
+- **餌のバランス値は動的な平衡点にある。** 餌の総供給量（個数 × 容量 ÷ 再生時間）が100匹の総消費量をやや下回るよう調整してある。上回ると蟻が餌の上に居座って探索が消え、大きく下回ると開始1分で全滅する。`config/resources.ts` を変更したら、餓死と寿命死の両方が発生することを複数シードで確認すること。
+- **`useSyncExternalStore` の getSnapshot は必ず同じ参照を返すこと。** 毎回新しいオブジェクトを返すと無限更新になる。`useWorldSnapshot.ts` の `useAntSummary` がキャッシュの実装例。
+- **E2EはソフトウェアWebGLで動くため遅い。** 並列度は2。低フレームレートでは1フレームあたりのステップ数上限に張り付くため、速度のテストは絶対値で判定しない。
 
 ## アーキテクチャ原則
 
@@ -92,14 +104,27 @@ npm run dev        # 開発サーバー
 npm run typecheck  # tsc --noEmit
 npm run lint       # eslint .
 npm run test       # vitest run
+npm run test:e2e   # playwright test
 npm run build      # typecheck + vite build
 npm run format     # prettier --write .
 ```
 
-単一テストは `npx vitest run src/simulation/engine/world.test.ts`。
-`npm run test:e2e` はPhase 1でPlaywrightを導入してから追加する（単一E2Eは `npx playwright test path/to/spec.ts -g "テスト名"`）。
+単一テストは `npx vitest run src/simulation/engine/world.test.ts`、単一E2Eは `npx playwright test e2e/speed.spec.ts -g "テスト名"`。
 
-Vitest の既定環境は `node`。シミュレーションはDOM非依存のため、これを維持する。DOMが要るテストはPhase 1でjsdomを入れてから追加する。
+Vitest の既定環境は `node`。シミュレーションはDOM非依存のため、これを維持する。DOMが要るテストはファイル単位で jsdom を指定する。
+
+### 開発サーバーの扱い
+
+動作確認のために開発サーバーを起動したら、**確認が終わったら必ず停止する**。
+
+```bash
+npm run dev       # ポート5180で起動（dev-server.config.json で固定）
+npm run dev:stop  # 停止
+```
+
+- **ポートを変えて起動し直さない。** ポートを変えるとサーバーが残り続け、CPUとポートを消費し続ける。ポートが埋まっている場合は、まず `npm run dev:stop` で自分のサーバーを止める。
+- `npm run dev:stop` は、そのポートを使っているのがこのリポジトリのプロセスかを確認してから停止する。5173 のようなVite既定ポートは他プロジェクトと衝突しやすく、ポート番号だけで判断すると無関係なサーバーを落とすため。
+- ポートの調査に `netstat -p TCP` を使わない。Vite は IPv6（`::1`）で待ち受けるが、このオプションは IPv4 しか列挙せず取りこぼす。`Get-NetTCPConnection` を使う。
 
 ## 作業フロー（仕様書 §0, §16）
 
@@ -127,7 +152,7 @@ Vitest の既定環境は `node`。シミュレーションはDOM非依存のた
 
 5. **完了時に品質ゲートを実行し、報告する。** typecheck / lint / test / build（E2E導入済みなら test:e2e も）。報告は仕様書 §16 のフォーマット。
 
-6. **PRを作成する。** 本文に `Closes #<番号>` を書く。マージ方法はユーザーの指示に従う。
+6. **PRを作成する。** `.github/pull_request_template.md` に沿って書く。本文の `Closes #` へIssue番号を入れる。マージ方法はユーザーの指示に従う。
 
 `main` へ直接コミットしない。例外は、この作業フロー自体の変更のように、Issueを立てる対象がない運用上の変更だけ。
 

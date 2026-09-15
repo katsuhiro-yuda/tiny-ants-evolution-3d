@@ -1,0 +1,63 @@
+.top-bar {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: var(--color-hud-bg);
+  color: var(--color-hud-text);
+  font-size: 13px;
+}
+
+.top-bar__stats {
+  display: flex;
+  gap: 18px;
+  margin: 0;
+}
+
+.top-bar__stat dt {
+  color: var(--color-hud-muted);
+  font-size: 11px;
+}
+
+.top-bar__stat dd {
+  margin: 0;
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+}
+
+.top-bar__speed {
+  display: flex;
+  gap: 4px;
+}
+
+.top-bar__speed-button {
+  padding: 5px 10px;
+  border: 1px solid rgb(255 255 255 / 22%);
+  border-radius: 5px;
+  background: transparent;
+  color: var(--color-hud-text);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.top-bar__speed-button:hover {
+  background: rgb(255 255 255 / 12%);
+}
+
+.top-bar__speed-button:focus-visible {
+  outline: 2px solid #7fd4ff;
+  outline-offset: 1px;
+}
+
+/* 選択状態を色だけで示さず、下線と太字も併用する（仕様書 §13） */
+.top-bar__speed-button[aria-pressed='true'] {
+  border-color: #7fd4ff;
+  background: rgb(127 212 255 / 18%);
+  font-weight: 700;
+  text-decoration: underline;
+}
