@@ -3,6 +3,7 @@ import { createWorld, stepWorld, type World } from '../simulation/engine/world';
 import { FIXED_TIMESTEP_SECONDS, type SpeedMultiplier } from '../simulation/config/time';
 import { createPerfMetrics, type PerfSnapshot } from '../analytics/perfMetrics';
 import { collectWorldStats, type WorldStats } from '../simulation/queries/worldStats';
+import { createStatsHistory, type StatsSample } from '../analytics/statsHistory';
 
 /**
  * シミュレーションと描画層の橋渡し（仕様書 §12 Application State）。
@@ -31,12 +32,15 @@ export interface SimulationRuntime {
   getPerfSnapshot: () => PerfSnapshot;
   subscribeStats: (listener: () => void) => () => void;
   getStatsSnapshot: () => WorldStats;
+  /** 統計の時系列。上限付きで、古いサンプルから捨てられる（仕様書 §10）。 */
+  getStatsHistory: () => readonly StatsSample[];
 }
 
 export function createSimulationRuntime(seed: string): SimulationRuntime {
   const world = createWorld(seed);
   const clock: FixedStepClock = createFixedStepClock(FIXED_TIMESTEP_SECONDS);
   const metrics = createPerfMetrics();
+  const history = createStatsHistory();
   const perfListeners = new Set<() => void>();
   const statsListeners = new Set<() => void>();
 
@@ -86,6 +90,7 @@ export function createSimulationRuntime(seed: string): SimulationRuntime {
       lastPublishedAt = now;
       perfSnapshot = metrics.snapshot();
       statsSnapshot = collectWorldStats(world);
+      history.record(statsSnapshot);
 
       for (const listener of perfListeners) {
         listener();
@@ -112,5 +117,7 @@ export function createSimulationRuntime(seed: string): SimulationRuntime {
     },
 
     getStatsSnapshot: () => statsSnapshot,
+
+    getStatsHistory: history.samples,
   };
 }

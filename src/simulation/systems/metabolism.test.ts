@@ -1,29 +1,33 @@
 import { describe, expect, it } from 'vitest';
-import { clampEnergy, computeEnergyCost, isStarved, isTooOld } from './metabolism';
 import {
-  BASAL_METABOLISM_PER_SECOND,
-  MAX_ENERGY,
-  MOVEMENT_COST_PER_UNIT_DISTANCE,
-  REST_METABOLISM_MULTIPLIER,
-} from '../config/biology';
+  clampEnergy,
+  computeEnergyCost,
+  isStarved,
+  isTooOld,
+  type MetabolicTraits,
+} from './metabolism';
+import { REST_METABOLISM_MULTIPLIER } from '../config/biology';
 
 const TIMESTEP = 1 / 60;
 
+/** 係数の影響を分離して見るため、基礎代謝と移動単価は固定値を与える。 */
+const traits: MetabolicTraits = { basalMetabolism: 0.5, movementCost: 0.22 };
+
 describe('computeEnergyCost', () => {
   it('静止していても基礎代謝を消費する', () => {
-    expect(computeEnergyCost(0, 1, false)).toBeCloseTo(BASAL_METABOLISM_PER_SECOND, 10);
+    expect(computeEnergyCost(traits, 0, 1, false)).toBeCloseTo(traits.basalMetabolism, 10);
   });
 
   it('移動距離に比例してコストが増える', () => {
-    const short = computeEnergyCost(1, TIMESTEP, false);
-    const long = computeEnergyCost(2, TIMESTEP, false);
+    const short = computeEnergyCost(traits, 1, TIMESTEP, false);
+    const long = computeEnergyCost(traits, 2, TIMESTEP, false);
 
-    expect(long - short).toBeCloseTo(MOVEMENT_COST_PER_UNIT_DISTANCE, 10);
+    expect(long - short).toBeCloseTo(traits.movementCost, 10);
   });
 
   it('休息中は基礎代謝が軽減される', () => {
-    const active = computeEnergyCost(0, 1, false);
-    const resting = computeEnergyCost(0, 1, true);
+    const active = computeEnergyCost(traits, 0, 1, false);
+    const resting = computeEnergyCost(traits, 0, 1, true);
 
     expect(resting).toBeCloseTo(active * REST_METABOLISM_MULTIPLIER, 10);
     expect(resting).toBeLessThan(active);
@@ -31,41 +35,49 @@ describe('computeEnergyCost', () => {
 
   it('休息中でも移動コストは軽減されない', () => {
     const movementOnly =
-      computeEnergyCost(3, TIMESTEP, true) - computeEnergyCost(0, TIMESTEP, true);
+      computeEnergyCost(traits, 3, TIMESTEP, true) - computeEnergyCost(traits, 0, TIMESTEP, true);
 
-    expect(movementOnly).toBeCloseTo(MOVEMENT_COST_PER_UNIT_DISTANCE * 3, 10);
+    expect(movementOnly).toBeCloseTo(traits.movementCost * 3, 10);
   });
 
   it('コストが負にならない', () => {
-    expect(computeEnergyCost(0, TIMESTEP, true)).toBeGreaterThan(0);
+    expect(computeEnergyCost(traits, 0, TIMESTEP, true)).toBeGreaterThan(0);
   });
 
   it('ステップ長に比例して基礎代謝が増える', () => {
-    const single = computeEnergyCost(0, TIMESTEP, false);
-    const double = computeEnergyCost(0, TIMESTEP * 2, false);
+    const single = computeEnergyCost(traits, 0, TIMESTEP, false);
+    const double = computeEnergyCost(traits, 0, TIMESTEP * 2, false);
 
     expect(double).toBeCloseTo(single * 2, 10);
   });
 
-  it('高速移動のほうが単位時間あたりのコストが高い（仕様書 §6 のトレードオフ）', () => {
-    const slow = computeEnergyCost(1 * TIMESTEP, TIMESTEP, false);
-    const fast = computeEnergyCost(3 * TIMESTEP, TIMESTEP, false);
+  it('基礎代謝の高い個体ほど同じ条件で多く消費する', () => {
+    const efficient = computeEnergyCost({ ...traits, basalMetabolism: 0.3 }, 1, TIMESTEP, false);
+    const costly = computeEnergyCost({ ...traits, basalMetabolism: 0.8 }, 1, TIMESTEP, false);
 
-    expect(fast).toBeGreaterThan(slow);
+    expect(costly).toBeGreaterThan(efficient);
+  });
+
+  it('移動単価の高い個体ほど同じ距離で多く消費する', () => {
+    const light = computeEnergyCost({ ...traits, movementCost: 0.1 }, 2, TIMESTEP, false);
+    const heavy = computeEnergyCost({ ...traits, movementCost: 0.4 }, 2, TIMESTEP, false);
+
+    expect(heavy).toBeGreaterThan(light);
   });
 });
 
 describe('clampEnergy', () => {
-  it('上限を超えない', () => {
-    expect(clampEnergy(MAX_ENERGY + 50)).toBe(MAX_ENERGY);
+  it('個体ごとの上限を超えない', () => {
+    expect(clampEnergy(150, 100)).toBe(100);
+    expect(clampEnergy(150, 120)).toBe(120);
   });
 
   it('負にならない', () => {
-    expect(clampEnergy(-10)).toBe(0);
+    expect(clampEnergy(-10, 100)).toBe(0);
   });
 
   it('範囲内はそのまま返す', () => {
-    expect(clampEnergy(42)).toBe(42);
+    expect(clampEnergy(42, 100)).toBe(42);
   });
 });
 

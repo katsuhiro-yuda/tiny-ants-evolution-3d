@@ -1,5 +1,4 @@
-import { FIELD_HALF, FIELD_MARGIN } from '../config/world';
-import { MAX_TURN_RATE } from '../config/biology';
+import { FIELD_BOUND } from '../config/world';
 import { isBlocked, type TerrainFeature } from '../resources/terrain';
 import type { Ant } from '../entities/ant';
 
@@ -10,23 +9,24 @@ import type { Ant } from '../entities/ant';
  * 地形と境界にぶつかる場合は進まず、方位を変えて次ステップへ回す。
  */
 
-/** 蟻が移動できる範囲の限界。 */
-export const MOVEMENT_BOUND = FIELD_HALF - FIELD_MARGIN;
-
 /** 角度差を -π〜π へ正規化する。 */
 export function normalizeAngle(angle: number): number {
   const wrapped = ((angle + Math.PI) % (Math.PI * 2)) + Math.PI * 2;
   return (wrapped % (Math.PI * 2)) - Math.PI;
 }
 
-/** 旋回速度の上限内で現在方位を目標方位へ近づける。 */
+/**
+ * 旋回速度の上限内で現在方位を目標方位へ近づける。
+ * 旋回速度は個体の形質で変わるため引数で受け取る（仕様書 §6「大型化 → 旋回低下」）。
+ */
 export function turnToward(
   currentHeading: number,
   targetHeading: number,
+  turnRate: number,
   timestepSeconds: number,
 ): number {
   const difference = normalizeAngle(targetHeading - currentHeading);
-  const maxTurn = MAX_TURN_RATE * timestepSeconds;
+  const maxTurn = turnRate * timestepSeconds;
 
   if (Math.abs(difference) <= maxTurn) {
     return normalizeAngle(targetHeading);
@@ -46,7 +46,7 @@ export function moveAnt(
   timestepSeconds: number,
   terrain: readonly TerrainFeature[],
 ): number {
-  ant.heading = turnToward(ant.heading, targetHeading, timestepSeconds);
+  ant.heading = turnToward(ant.heading, targetHeading, ant.traits.turnRate, timestepSeconds);
 
   if (speed <= 0) {
     ant.velocity.x = 0;
@@ -59,10 +59,7 @@ export function moveAnt(
   const nextZ = ant.position.z + Math.sin(ant.heading) * distance;
 
   const outOfBounds =
-    nextX < -MOVEMENT_BOUND ||
-    nextX > MOVEMENT_BOUND ||
-    nextZ < -MOVEMENT_BOUND ||
-    nextZ > MOVEMENT_BOUND;
+    nextX < -FIELD_BOUND || nextX > FIELD_BOUND || nextZ < -FIELD_BOUND || nextZ > FIELD_BOUND;
 
   if (outOfBounds || isBlocked(terrain, nextX, nextZ)) {
     // 進路が塞がれている。反転させて次ステップで別方向を試す

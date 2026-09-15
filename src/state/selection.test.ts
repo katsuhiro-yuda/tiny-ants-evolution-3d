@@ -1,22 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { nextAntId } from './selection';
+import { makeAnt } from '../test/antFactory';
 import type { Ant } from '../simulation/entities/ant';
 
 function makeAnts(ids: string[]): Ant[] {
-  return ids.map((id) => ({
-    id,
-    lineageId: id,
-    generation: 0,
-    position: { x: 0, y: 0, z: 0 },
-    velocity: { x: 0, y: 0, z: 0 },
-    heading: 0,
-    age: 0,
-    lifespan: 100,
-    energy: 50,
-    state: 'Explore' as const,
-    decisionCooldown: 0,
-    wanderHeading: 0,
-  }));
+  return ids.map((id) => makeAnt({ overrides: { id, lineageId: id } }));
 }
 
 describe('nextAntId', () => {

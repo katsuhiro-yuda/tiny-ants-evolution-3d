@@ -1,11 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { createWorld, stepWorld, type World } from './world';
-import { FIELD_HALF, FIELD_MARGIN, INITIAL_ANT_COUNT } from '../config/world';
+import { FIELD_BOUND, INITIAL_ANT_COUNT } from '../config/world';
 import { FIXED_TIMESTEP_SECONDS } from '../config/time';
-import { LIFESPAN_MAX_SECONDS, MAX_ENERGY } from '../config/biology';
+import { LIFESPAN_JITTER, LIFESPAN_MAX } from '../config/genetics';
+
+/** 個体差を含めた寿命の上限。 */
+const LIFESPAN_CEILING = LIFESPAN_MAX * (1 + LIFESPAN_JITTER);
 import { isBlocked } from '../resources/terrain';
 
-const BOUND = FIELD_HALF - FIELD_MARGIN;
+const BOUND = FIELD_BOUND;
 
 function positionsOf(world: World) {
   return world.ants.map((ant) => ({ ...ant.position }));
@@ -80,7 +83,7 @@ describe('createWorld', () => {
     const lifespans = world.ants.map((ant) => ant.lifespan);
 
     expect(new Set(lifespans).size).toBeGreaterThan(50);
-    expect(Math.max(...lifespans)).toBeLessThanOrEqual(LIFESPAN_MAX_SECONDS);
+    expect(Math.max(...lifespans)).toBeLessThanOrEqual(LIFESPAN_CEILING);
   });
 });
 
@@ -124,7 +127,7 @@ describe('stepWorld', () => {
     run(world, 25);
 
     const totalFoodAfter = world.foods.reduce((sum, food) => sum + food.energy, 0);
-    const recovered = world.ants.filter((ant) => ant.energy > MAX_ENERGY * 0.9);
+    const recovered = world.ants.filter((ant) => ant.energy > ant.traits.energyCapacity * 0.9);
 
     expect(totalFoodAfter).toBeLessThan(totalFoodBefore);
     expect(recovered.length).toBeGreaterThan(0);
@@ -174,21 +177,24 @@ describe('stepWorld', () => {
 
   it('寿命で死亡する（Phase 1完了条件）', () => {
     const world = createWorld('old-age', 5);
-    // 餓死しないようエネルギーを満たし続ける
+    // エネルギーを満たし続けるため餓死は起きない。繁殖で子が増えるので初期個体だけを追う
+    const initialIds = new Set(world.ants.map((ant) => ant.id));
     const causes = new Set<string>();
 
-    for (let i = 0; i < 60 * (LIFESPAN_MAX_SECONDS + 5) && world.ants.length > 0; i += 1) {
+    for (let i = 0; i < 60 * (LIFESPAN_CEILING + 5) && initialIds.size > 0; i += 1) {
       for (const ant of world.ants) {
-        ant.energy = MAX_ENERGY;
+        ant.energy = ant.traits.energyCapacity;
       }
       stepWorld(world, FIXED_TIMESTEP_SECONDS);
       for (const death of world.recentDeaths) {
-        causes.add(death.cause);
+        if (initialIds.delete(death.antId)) {
+          causes.add(death.cause);
+        }
       }
     }
 
     expect(causes).toEqual(new Set(['oldAge']));
-    expect(world.ants).toHaveLength(0);
+    expect(initialIds.size).toBe(0);
   });
 
   it('recentDeaths はステップごとに初期化される', () => {

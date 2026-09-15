@@ -5,8 +5,7 @@ import { useWorldStats } from '../state/useWorldSnapshot';
 import './TopBar.css';
 
 /**
- * 上部バー（仕様書 §10）。経過時間、個体数、再生速度を表示する。
- * 最大世代は Phase 2 で世代が動き始めてから追加する。
+ * 上部バー（仕様書 §10）。経過時間、最大世代、個体数、再生速度を表示する。
  */
 interface TopBarProps {
   runtime: SimulationRuntime;
@@ -36,8 +35,16 @@ export function TopBar({ runtime }: TopBarProps) {
           <dd>{formatElapsed(stats.elapsedSeconds)}</dd>
         </div>
         <div className="top-bar__stat">
+          <dt>最大世代</dt>
+          <dd>{stats.maxGeneration}</dd>
+        </div>
+        <div className="top-bar__stat">
           <dt>個体数</dt>
           <dd>{stats.population}</dd>
+        </div>
+        <div className="top-bar__stat">
+          <dt>出生数</dt>
+          <dd>{stats.birthCount}</dd>
         </div>
         <div className="top-bar__stat">
           <dt>死亡数</dt>

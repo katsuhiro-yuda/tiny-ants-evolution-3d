@@ -30,3 +30,13 @@ export async function readElapsedSeconds(page: Page): Promise<number> {
 export function detailPanel(page: Page) {
   return page.getByRole('complementary', { name: '個体詳細' });
 }
+
+/** 上部バーの統計値。 */
+export function topBarStat(page: Page, label: string) {
+  return page.locator('.top-bar__stat').filter({ hasText: label }).locator('dd');
+}
+
+/** 統計パネルの開閉部分。クリックで開く。 */
+export function statsPanel(page: Page) {
+  return page.locator('.stats-panel__summary');
+}

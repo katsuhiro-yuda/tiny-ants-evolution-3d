@@ -1,6 +1,7 @@
 import { useMemo, useSyncExternalStore } from 'react';
 import type { SimulationRuntime } from './simulationRuntime';
 import type { WorldStats } from '../simulation/queries/worldStats';
+import type { StatsSample } from '../analytics/statsHistory';
 import { findAntSummary, type AntSummary } from '../simulation/queries/antSummary';
 
 /**
@@ -11,6 +12,14 @@ import { findAntSummary, type AntSummary } from '../simulation/queries/antSummar
  */
 export function useWorldStats(runtime: SimulationRuntime): WorldStats {
   return useSyncExternalStore(runtime.subscribeStats, runtime.getStatsSnapshot);
+}
+
+/**
+ * 統計の時系列を購読する。
+ * 記録がない間は同じ配列参照が返るため、そのまま getSnapshot に使える。
+ */
+export function useStatsHistory(runtime: SimulationRuntime): readonly StatsSample[] {
+  return useSyncExternalStore(runtime.subscribeStats, runtime.getStatsHistory);
 }
 
 /**
@@ -33,7 +42,7 @@ export function useAntSummary(
       const stats = runtime.getStatsSnapshot();
       if (stats !== cachedStats) {
         cachedStats = stats;
-        cachedSummary = findAntSummary(runtime.world.ants, antId);
+        cachedSummary = findAntSummary(runtime.world.ants, antId, stats.featureThresholds);
       }
       return cachedSummary;
     };

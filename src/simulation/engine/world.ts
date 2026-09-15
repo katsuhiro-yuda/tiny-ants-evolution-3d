@@ -1,12 +1,8 @@
-import { FIELD_HALF, FIELD_MARGIN, INITIAL_ANT_COUNT } from '../config/world';
-import {
-  DECISION_INTERVAL_SECONDS,
-  INITIAL_ENERGY,
-  LIFESPAN_MAX_SECONDS,
-  LIFESPAN_MIN_SECONDS,
-  SPATIAL_CELL_SIZE,
-} from '../config/biology';
-import type { Ant, DeathRecord } from '../entities/ant';
+import { FIELD_BOUND, INITIAL_ANT_COUNT } from '../config/world';
+import { INITIAL_ENERGY_RATIO, SPATIAL_CELL_SIZE } from '../config/biology';
+import { createAnt, type Ant, type BirthRecord, type DeathRecord } from '../entities/ant';
+import { createInitialGenome } from '../genetics/genome';
+import { computeEnergyCapacity } from '../genetics/traits';
 import type { Food } from '../resources/food';
 import { generateFood, generateTerrain } from '../resources/generate';
 import { isBlocked, type TerrainFeature } from '../resources/terrain';
@@ -34,14 +30,19 @@ export interface World {
   random: Random;
   /** 直近ステップで死亡した個体。イベントログと統計が参照する。 */
   recentDeaths: DeathRecord[];
+  /** 直近ステップで生まれた個体。 */
+  recentBirths: BirthRecord[];
   /** 累計死亡数。 */
   deathCount: number;
+  /** 累計出生数。 */
+  birthCount: number;
+  /** これまでに到達した最大世代。その世代の個体が死んでも減らさない。 */
+  maxGeneration: number;
+  /** 個体IDの通し番号。繁殖のたびに増える。 */
+  nextAntSerial: number;
   /** 餌の近傍探索用グリッド。毎ステップ再構築する。 */
   foodGrid: UniformGrid<Food>;
 }
-
-/** 蟻が移動できる範囲の限界。 */
-const BOUND = FIELD_HALF - FIELD_MARGIN;
 
 /** 地形と重ならない位置を探す試行回数。 */
 const SPAWN_ATTEMPTS = 30;
@@ -68,7 +69,11 @@ export function createWorld(seed: string, antCount: number = INITIAL_ANT_COUNT):
     terrain,
     random,
     recentDeaths: [],
+    recentBirths: [],
     deathCount: 0,
+    birthCount: 0,
+    maxGeneration: 0,
+    nextAntSerial: antCount,
     foodGrid,
   };
 }
@@ -82,30 +87,29 @@ function generateAnts(random: Random, terrain: readonly TerrainFeature[], count:
     let z = 0;
 
     for (let attempt = 0; attempt < SPAWN_ATTEMPTS; attempt += 1) {
-      x = random.range(-BOUND, BOUND);
-      z = random.range(-BOUND, BOUND);
+      x = random.range(-FIELD_BOUND, FIELD_BOUND);
+      z = random.range(-FIELD_BOUND, FIELD_BOUND);
       if (!isBlocked(terrain, x, z)) {
         break;
       }
     }
 
-    const heading = random.range(-Math.PI, Math.PI);
+    const genome = createInitialGenome(random);
 
-    ants.push({
-      id: `ant-${i}`,
-      lineageId: `lineage-${i}`,
-      generation: 0,
-      position: { x, y: 0, z },
-      velocity: { x: 0, y: 0, z: 0 },
-      heading,
-      age: 0,
-      lifespan: random.range(LIFESPAN_MIN_SECONDS, LIFESPAN_MAX_SECONDS),
-      energy: INITIAL_ENERGY,
-      state: 'Explore',
-      // 意思決定タイミングを個体ごとにずらし、同一ステップへ集中させない（仕様書 §7）
-      decisionCooldown: random.range(0, DECISION_INTERVAL_SECONDS),
-      wanderHeading: heading,
-    });
+    ants.push(
+      createAnt({
+        id: `ant-${i}`,
+        // 初期個体はそれぞれが独立した系統の始祖になる（仕様書 §6）
+        lineageId: `lineage-${i}`,
+        generation: 0,
+        genome,
+        x,
+        z,
+        heading: random.range(-Math.PI, Math.PI),
+        energy: computeEnergyCapacity(genome) * INITIAL_ENERGY_RATIO,
+        random,
+      }),
+    );
   }
 
   return ants;
@@ -125,9 +129,23 @@ export function stepWorld(world: World, timestepSeconds: number): void {
     random: world.random,
     timestepSeconds,
     deaths: world.recentDeaths,
+    births: world.recentBirths,
+    nextAntId: () => {
+      const id = `ant-${world.nextAntSerial}`;
+      world.nextAntSerial += 1;
+      return id;
+    },
   });
 
   world.deathCount += world.recentDeaths.length;
+  world.birthCount += world.recentBirths.length;
+
+  for (const birth of world.recentBirths) {
+    if (birth.generation > world.maxGeneration) {
+      world.maxGeneration = birth.generation;
+    }
+  }
+
   world.tick += 1;
   world.elapsedSeconds += timestepSeconds;
 }

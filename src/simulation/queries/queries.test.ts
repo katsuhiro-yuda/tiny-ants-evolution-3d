@@ -3,38 +3,41 @@ import { BEHAVIOR_LABELS, findAntSummary, toAntSummary } from './antSummary';
 import { collectWorldStats } from './worldStats';
 import { createWorld, stepWorld } from '../engine/world';
 import { FIXED_TIMESTEP_SECONDS } from '../config/time';
-import { MAX_ENERGY } from '../config/biology';
+import { computeFeatureThresholds } from '../genetics/ecotype';
+import { makeAnt as buildAnt } from '../../test/antFactory';
 import type { Ant } from '../entities/ant';
 
+/** 個体詳細の検証で使う蟻。エネルギーは上限の半分に揃える。 */
 function makeAnt(overrides: Partial<Ant> = {}): Ant {
-  return {
-    id: 'ant-1',
-    lineageId: 'lineage-1',
-    generation: 0,
-    position: { x: 3, y: 0, z: -4 },
-    velocity: { x: 0, y: 0, z: 0 },
-    heading: 0,
-    age: 12,
-    lifespan: 200,
-    energy: MAX_ENERGY / 2,
-    state: 'Explore',
-    decisionCooldown: 0,
-    wanderHeading: 0,
-    ...overrides,
-  };
+  const base = buildAnt({
+    overrides: {
+      id: 'ant-1',
+      lineageId: 'lineage-1',
+      position: { x: 3, y: 0, z: -4 },
+      age: 12,
+      lifespan: 200,
+    },
+  });
+
+  return { ...base, energy: base.traits.energyCapacity / 2, ...overrides };
+}
+
+/** 特徴ラベルの閾値。個体群を渡さない検証では、その集団だけから作る。 */
+function thresholdsOf(ants: readonly Ant[]) {
+  return computeFeatureThresholds(ants.map((ant) => ant.genome));
 }
 
 describe('toAntSummary', () => {
   it('エネルギーを0〜1へ正規化する', () => {
-    expect(toAntSummary(makeAnt()).energyRatio).toBeCloseTo(0.5, 10);
+    expect(toAntSummary(makeAnt(), thresholdsOf([])).energyRatio).toBeCloseTo(0.5, 10);
   });
 
   it('位置はXZのみを渡す（描画用のyを持ち込まない）', () => {
-    expect(toAntSummary(makeAnt()).position).toEqual({ x: 3, z: -4 });
+    expect(toAntSummary(makeAnt(), thresholdsOf([])).position).toEqual({ x: 3, z: -4 });
   });
 
   it('年齢と寿命をそのまま渡す', () => {
-    const summary = toAntSummary(makeAnt({ age: 30, lifespan: 180 }));
+    const summary = toAntSummary(makeAnt({ age: 30, lifespan: 180 }), thresholdsOf([]));
 
     expect(summary.ageSeconds).toBe(30);
     expect(summary.lifespanSeconds).toBe(180);
@@ -45,22 +48,28 @@ describe('findAntSummary', () => {
   const ants = [makeAnt({ id: 'ant-1' }), makeAnt({ id: 'ant-2' })];
 
   it('IDで個体を見つける', () => {
-    expect(findAntSummary(ants, 'ant-2')?.id).toBe('ant-2');
+    expect(findAntSummary(ants, 'ant-2', thresholdsOf(ants))?.id).toBe('ant-2');
   });
 
   it('未選択なら undefined', () => {
-    expect(findAntSummary(ants, undefined)).toBeUndefined();
+    expect(findAntSummary(ants, undefined, thresholdsOf(ants))).toBeUndefined();
   });
 
   it('死亡した個体のIDなら undefined', () => {
-    expect(findAntSummary(ants, 'ant-99')).toBeUndefined();
+    expect(findAntSummary(ants, 'ant-99', thresholdsOf(ants))).toBeUndefined();
   });
 });
 
 describe('BEHAVIOR_LABELS', () => {
   it('全ての行動状態に日本語ラベルがある', () => {
     expect(Object.values(BEHAVIOR_LABELS).every((label) => label.length > 0)).toBe(true);
-    expect(Object.keys(BEHAVIOR_LABELS)).toEqual(['Explore', 'SeekFood', 'Eat', 'Rest']);
+    expect(Object.keys(BEHAVIOR_LABELS)).toEqual([
+      'Explore',
+      'SeekFood',
+      'Eat',
+      'Rest',
+      'Reproduce',
+    ]);
   });
 });
 

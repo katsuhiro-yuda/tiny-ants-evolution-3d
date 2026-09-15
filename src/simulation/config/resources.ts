@@ -4,11 +4,11 @@
  */
 
 /** 初期配置する植物性餌の数。 */
-export const INITIAL_FOOD_COUNT = 170;
+export const INITIAL_FOOD_COUNT = 400;
 
 /** 植物性餌1つが持つエネルギー量の範囲。 */
-export const FOOD_ENERGY_MIN = 18;
-export const FOOD_ENERGY_MAX = 32;
+export const FOOD_ENERGY_MIN = 24;
+export const FOOD_ENERGY_MAX = 42;
 
 /** 蟻が1回の採食で吸収できるエネルギー量（1秒あたり）。 */
 export const FOOD_INTAKE_PER_SECOND = 26;
@@ -22,10 +22,10 @@ export const FOOD_REACH = 0.9;
  * 餌の総供給量（個数 × 容量 ÷ 再生時間）が100匹の総消費量をやや下回るよう調整してある。
  * 供給が上回ると蟻が餌の上に居座り探索が起きなくなり、大きく下回ると開始1分で全滅する。
  */
-export const FOOD_REGROWTH_DELAY_SECONDS = 22;
+export const FOOD_REGROWTH_DELAY_SECONDS = 6;
 
 /** 再生にかかる時間（秒）。この間はエネルギーが線形に回復する。 */
-export const FOOD_REGROWTH_DURATION_SECONDS = 40;
+export const FOOD_REGROWTH_DURATION_SECONDS = 42;
 
 /**
  * 水場の近くで再生が速くなる倍率と、その影響が及ぶ距離。

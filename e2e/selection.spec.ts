@@ -18,7 +18,8 @@ test.describe('個体選択', () => {
     await gotoApp(page);
 
     await page.keyboard.press('n');
-    const heading = detailPanel(page).getByRole('heading');
+    // 個体詳細には見出しが複数ある（個体IDのh2と「遺伝形質」のh3）ため、個体IDだけを指す
+    const heading = detailPanel(page).getByRole('heading', { level: 2 });
     await expect(heading).toBeVisible();
     const first = await heading.textContent();
 

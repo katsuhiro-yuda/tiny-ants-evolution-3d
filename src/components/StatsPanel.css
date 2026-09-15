@@ -1,0 +1,151 @@
+/* 下部の統計パネル（仕様書 §10「下部: 折りたたみ式の統計とイベントログ」）。 */
+.stats-panel {
+  width: 100%;
+  border-radius: 8px;
+  background: var(--color-hud-bg);
+  color: var(--color-hud-text);
+  font-size: 12px;
+}
+
+.stats-panel__summary {
+  padding: 8px 12px;
+  cursor: pointer;
+  list-style: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.stats-panel__summary::-webkit-details-marker {
+  display: none;
+}
+
+.stats-panel__summary::before {
+  content: '▸ ';
+  color: var(--color-hud-muted);
+}
+
+.stats-panel[open] .stats-panel__summary::before {
+  content: '▾ ';
+}
+
+.stats-panel__summary:focus-visible {
+  outline: 2px solid #7fd4ff;
+  outline-offset: 1px;
+}
+
+.stats-panel__body {
+  max-height: min(46vh, 420px);
+  padding: 0 12px 12px;
+  overflow-y: auto;
+  display: grid;
+  gap: 14px;
+}
+
+.stats-panel__section h3 {
+  margin: 0 0 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-hud-muted);
+}
+
+.stats-panel__charts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.stats-panel__chart {
+  margin: 0;
+  color: #7fd4ff;
+}
+
+.stats-panel__chart figcaption {
+  margin-bottom: 2px;
+  color: var(--color-hud-muted);
+  font-size: 11px;
+}
+
+.stats-panel__chart figcaption strong {
+  color: var(--color-hud-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.stats-panel__chart svg {
+  display: block;
+  border-radius: 4px;
+  background: rgb(255 255 255 / 8%);
+}
+
+.stats-panel__diets {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 4px;
+}
+
+.stats-panel__diet {
+  display: grid;
+  grid-template-columns: 60px 1fr 86px;
+  gap: 8px;
+  align-items: center;
+}
+
+.stats-panel__diet-label {
+  color: var(--color-hud-muted);
+}
+
+.stats-panel__diet-value {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.stats-panel__traits {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 3px 14px;
+}
+
+.stats-panel__trait {
+  display: grid;
+  grid-template-columns: 84px 1fr;
+  gap: 6px;
+  align-items: center;
+}
+
+.stats-panel__trait dt {
+  color: var(--color-hud-muted);
+  font-size: 11px;
+}
+
+.stats-panel__trait dd {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.stats-panel__bar {
+  position: relative;
+  flex: 1;
+  height: 6px;
+  border-radius: 3px;
+  background: rgb(255 255 255 / 16%);
+  overflow: hidden;
+}
+
+.stats-panel__bar-fill {
+  display: block;
+  height: 100%;
+  background: #7fb0d4;
+}
+
+/* 平均を中心とした標準偏差の帯。塗りの上に重ねる */
+.stats-panel__bar-deviation {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  background: rgb(255 255 255 / 30%);
+}

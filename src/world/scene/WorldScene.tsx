@@ -4,7 +4,7 @@ import { FIELD_HALF, FIELD_SIZE } from '../../simulation/config/world';
 
 /**
  * 地形とライティング（仕様書 §11「温かみのあるローポリ・ジオラマ調」）。
- * 水場・岩・植物はPhase 1で資源として追加する。
+ * 水場・岩は TerrainFeatures、植物性餌は FoodInstances が描画する。ここは地面と光だけを持つ。
  */
 
 const GROUND_COLOR = '#c8b28a';

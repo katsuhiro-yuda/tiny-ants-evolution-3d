@@ -20,31 +20,36 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 現在の状態
 
-**Phase 1（生存）まで完了。** 次は Phase 2（進化）で、着手前にIssue作成・ブランチ作成・計画提示が必要。
+**Phase 2（進化）まで完了。** 次は Phase 3（捕食と生態系）で、着手前にIssue作成・ブランチ作成・計画提示が必要。
 
 実装済みの構造:
 
 - `src/simulation/` — React / Three.js 非依存。ESLint の `no-restricted-imports` で依存を禁止しているので、回避せず設計側を直すこと
   - `engine/` — シード付き乱数（mulberry32）、固定タイムステップ、`world.ts`（各システムを順に呼ぶ）
-  - `spatial/uniformGrid.ts` — 近傍探索。セルサイズ＝想定最大視界で3×3セルに収める。毎ステップ再構築
-  - `systems/` — 代謝、移動、餌の再生、`survival.ts`（意思決定→移動→採食→代謝→死亡判定）
+  - `spatial/uniformGrid.ts` — 近傍探索。セルサイズ＝想定最大視界に収める。毎ステップ再構築
+  - `systems/` — 代謝、移動、餌の再生、繁殖、`survival.ts`（意思決定→移動→採食・繁殖→代謝→死亡判定）
+  - `genetics/` — `genome.ts`（14形質と値域）、`traits.ts`（形質→能力値。トレードオフはすべてここ）、`inherit.ts`（継承と突然変異）、`ecotype.ts`（食性・特徴ラベル）
   - `behaviors/` — 行動スコア。`DecisionContext` には視界内の餌しか入らず、視界外参照を型で防ぐ
   - `resources/` — 餌・地形。餌は食べ尽くしても消さず再生待ちにする（配列長を固定に保つ）
   - `queries/` — UI向けの読み取り専用ビュー。表示用の整形はここでだけ行う
-  - `config/` — バランス値。`resources.ts` の餌の供給量は慎重に調整済み（下記）
+  - `config/` — バランス値。`genetics.ts` と `resources.ts` の値は慎重に調整済み（下記）
 - `src/state/` — `simulationRuntime.ts` がシミュレーションとUIの唯一の橋渡し。`uiStore.ts`（Zustand）は選択個体と再生速度だけを持つ
 - `src/state/SimulationDriver.tsx` — `useFrame` を priority 1/3 で使い、シミュレーション → 描画 → 計測確定の順序を固定する。priority 1以上のuseFrameがあるとR3Fの自動描画が止まるため、`gl.render` を明示的に呼んでいる
 - `src/world/renderers/` — `InstancedMesh`。行列書き込みは priority 2。一時オブジェクトはモジュールスコープで使い回し、ループ内で確保しない
-- `src/analytics/perfMetrics.ts` — 固定長リングバッファでメモリを増やさない
+- `src/analytics/` — `perfMetrics.ts`（性能）と `statsHistory.ts`（統計の時系列）。どちらも固定長リングバッファでメモリを増やさない
+- `src/test/antFactory.ts` — テスト用の蟻を作るヘルパー。`Ant` のフィールドが増えるたびに各テストを直さずに済むよう、生成はここへ寄せる
 - `e2e/` — Playwright。`helpers.ts` の `gotoApp` を必ず経由する
 
-未実装（各Phaseで追加）: `simulation/{genetics,colony}`、`persistence/`、`workers/`
+未実装（各Phaseで追加）: `simulation/colony`、`persistence/`、`workers/`
 
 ### 注意が必要な箇所
 
-- **餌のバランス値は動的な平衡点にある。** 餌の総供給量（個数 × 容量 ÷ 再生時間）が100匹の総消費量をやや下回るよう調整してある。上回ると蟻が餌の上に居座って探索が消え、大きく下回ると開始1分で全滅する。`config/resources.ts` を変更したら、餓死と寿命死の両方が発生することを複数シードで確認すること。
-- **`useSyncExternalStore` の getSnapshot は必ず同じ参照を返すこと。** 毎回新しいオブジェクトを返すと無限更新になる。`useWorldSnapshot.ts` の `useAntSummary` がキャッシュの実装例。
-- **E2EはソフトウェアWebGLで動くため遅い。** 並列度は2。低フレームレートでは1フレームあたりのステップ数上限に張り付くため、速度のテストは絶対値で判定しない。
+- **形質の効果とコストは `genetics/traits.ts` に集約する。** 能力値を個別のシステムで計算し直さない。個体ごとの能力値は `createDerivedTraits` で生成時に一度だけ求め、`ant.traits` にキャッシュしてある（形質は生涯変わらない）。新しい能力を足すときは、必ず対応するコストも同時に足す（仕様書 §6）。
+- **餌と代謝のバランスは動的な平衡点にある。** 環境収容力が40〜280匹の範囲で振動し、1200秒で25世代前後に進む値に調整してある。`config/genetics.ts` か `config/resources.ts` を変更したら、複数シードで「絶滅しないこと」「餓死と寿命死の両方が起きること」「50世代に到達すること」を確認すること（`evolution.test.ts` が最初の2つと50世代到達を検証する）。
+- **繁殖の閾値と成熟年齢は世代交代の速度を直接決める。** 下げると世代は速く進むが、初期の人口爆発と大量餓死が激しくなる。
+- **`useSyncExternalStore` の getSnapshot は必ず同じ参照を返すこと。** 毎回新しいオブジェクトを返すと無限更新になる。`useWorldSnapshot.ts` の `useAntSummary` と `statsHistory.ts` の `samples` がキャッシュの実装例。
+- **E2EはソフトウェアWebGLで動くため遅い。** 並列度は2。低フレームレートでは1フレームあたりのステップ数上限に張り付くため、速度のテストは絶対値で判定しない。描画を重くすると等倍でも上限に張り付き、速度テストが成立しなくなる。
+- **単体テストは約60秒かかる。** `evolution.test.ts` が50世代ぶん（約15万ステップ）進めるため。個別ファイルを指定して実行すると速い。
 
 ## アーキテクチャ原則
 
