@@ -1,4 +1,4 @@
-import { FIELD_HALF, FIELD_MARGIN } from '../config/world';
+import { FIELD_BOUND } from '../config/world';
 import { MAX_TURN_RATE } from '../config/biology';
 import { isBlocked, type TerrainFeature } from '../resources/terrain';
 import type { Ant } from '../entities/ant';
@@ -9,9 +9,6 @@ import type { Ant } from '../entities/ant';
  * 目標方位へ旋回速度の上限内で向きを変え、前進する。
  * 地形と境界にぶつかる場合は進まず、方位を変えて次ステップへ回す。
  */
-
-/** 蟻が移動できる範囲の限界。 */
-export const MOVEMENT_BOUND = FIELD_HALF - FIELD_MARGIN;
 
 /** 角度差を -π〜π へ正規化する。 */
 export function normalizeAngle(angle: number): number {
@@ -59,10 +56,7 @@ export function moveAnt(
   const nextZ = ant.position.z + Math.sin(ant.heading) * distance;
 
   const outOfBounds =
-    nextX < -MOVEMENT_BOUND ||
-    nextX > MOVEMENT_BOUND ||
-    nextZ < -MOVEMENT_BOUND ||
-    nextZ > MOVEMENT_BOUND;
+    nextX < -FIELD_BOUND || nextX > FIELD_BOUND || nextZ < -FIELD_BOUND || nextZ > FIELD_BOUND;
 
   if (outOfBounds || isBlocked(terrain, nextX, nextZ)) {
     // 進路が塞がれている。反転させて次ステップで別方向を試す

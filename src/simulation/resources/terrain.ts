@@ -36,7 +36,11 @@ export function isBlocked(features: readonly TerrainFeature[], x: number, z: num
 }
 
 /** 指定座標から最も近い水場までの距離。水場がなければ Infinity。 */
-export function distanceToNearestWater(features: readonly TerrainFeature[], x: number, z: number) {
+export function distanceToNearestWater(
+  features: readonly TerrainFeature[],
+  x: number,
+  z: number,
+): number {
   let nearest = Number.POSITIVE_INFINITY;
 
   for (const feature of features) {

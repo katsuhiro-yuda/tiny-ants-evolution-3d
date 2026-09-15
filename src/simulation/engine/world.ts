@@ -1,4 +1,4 @@
-import { FIELD_HALF, FIELD_MARGIN, INITIAL_ANT_COUNT } from '../config/world';
+import { FIELD_BOUND, INITIAL_ANT_COUNT } from '../config/world';
 import {
   DECISION_INTERVAL_SECONDS,
   INITIAL_ENERGY,
@@ -40,9 +40,6 @@ export interface World {
   foodGrid: UniformGrid<Food>;
 }
 
-/** 蟻が移動できる範囲の限界。 */
-const BOUND = FIELD_HALF - FIELD_MARGIN;
-
 /** 地形と重ならない位置を探す試行回数。 */
 const SPAWN_ATTEMPTS = 30;
 
@@ -82,8 +79,8 @@ function generateAnts(random: Random, terrain: readonly TerrainFeature[], count:
     let z = 0;
 
     for (let attempt = 0; attempt < SPAWN_ATTEMPTS; attempt += 1) {
-      x = random.range(-BOUND, BOUND);
-      z = random.range(-BOUND, BOUND);
+      x = random.range(-FIELD_BOUND, FIELD_BOUND);
+      z = random.range(-FIELD_BOUND, FIELD_BOUND);
       if (!isBlocked(terrain, x, z)) {
         break;
       }

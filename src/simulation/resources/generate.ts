@@ -1,4 +1,4 @@
-import { FIELD_HALF, FIELD_MARGIN } from '../config/world';
+import { FIELD_BOUND } from '../config/world';
 import {
   FOOD_ENERGY_MAX,
   FOOD_ENERGY_MIN,
@@ -22,8 +22,6 @@ import { distanceToNearestWater, isBlocked, type TerrainFeature } from './terrai
  * 同一シードから同一配置になること（仕様書 §4）を保つため、乱数は引数で受け取る。
  */
 
-const BOUND = FIELD_HALF - FIELD_MARGIN;
-
 /** 地形を重ならないように配置する。試行上限に達した分は生成しない。 */
 export function generateTerrain(random: Random): TerrainFeature[] {
   const features: TerrainFeature[] = [];
@@ -32,8 +30,8 @@ export function generateTerrain(random: Random): TerrainFeature[] {
     for (let i = 0; i < count; i += 1) {
       for (let attempt = 0; attempt < TERRAIN_PLACEMENT_ATTEMPTS; attempt += 1) {
         const radius = random.range(min, max);
-        const x = random.range(-BOUND + radius, BOUND - radius);
-        const z = random.range(-BOUND + radius, BOUND - radius);
+        const x = random.range(-FIELD_BOUND + radius, FIELD_BOUND - radius);
+        const z = random.range(-FIELD_BOUND + radius, FIELD_BOUND - radius);
 
         const overlaps = features.some((existing) => {
           const gap = Math.hypot(x - existing.position.x, z - existing.position.z);
@@ -72,8 +70,8 @@ export function generateFood(random: Random, terrain: readonly TerrainFeature[])
     let placed = false;
 
     for (let attempt = 0; attempt < TERRAIN_PLACEMENT_ATTEMPTS; attempt += 1) {
-      x = random.range(-BOUND, BOUND);
-      z = random.range(-BOUND, BOUND);
+      x = random.range(-FIELD_BOUND, FIELD_BOUND);
+      z = random.range(-FIELD_BOUND, FIELD_BOUND);
       if (!isBlocked(terrain, x, z)) {
         placed = true;
         break;

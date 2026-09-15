@@ -5,7 +5,7 @@ import { FIELD_SIZE } from '../../simulation/config/world';
  * 斜め上視点のカメラ操作（仕様書 §9）。
  *
  * ドラッグで回転、ホイールでズーム、右ドラッグで平行移動。
- * 選択個体の追跡はPhase 1で個体選択を実装してから追加する。
+ * 選択個体の追跡（仕様書 §9）は未実装。コロニー追跡と共通の仕組みになるため Phase 4 で追加する。
  */
 export function CameraRig() {
   return (

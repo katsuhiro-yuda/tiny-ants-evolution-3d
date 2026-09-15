@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { createWorld, stepWorld, type World } from './world';
-import { FIELD_HALF, FIELD_MARGIN, INITIAL_ANT_COUNT } from '../config/world';
+import { FIELD_BOUND, INITIAL_ANT_COUNT } from '../config/world';
 import { FIXED_TIMESTEP_SECONDS } from '../config/time';
 import { LIFESPAN_MAX_SECONDS, MAX_ENERGY } from '../config/biology';
 import { isBlocked } from '../resources/terrain';
 
-const BOUND = FIELD_HALF - FIELD_MARGIN;
+const BOUND = FIELD_BOUND;
 
 function positionsOf(world: World) {
   return world.ants.map((ant) => ({ ...ant.position }));
