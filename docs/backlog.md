@@ -155,6 +155,17 @@ Phase完了時にこのファイルを更新する。MVP対象外の機能要望
 - Phase 1 の完了条件には含まれていないため、仕様違反ではない
 - 対応時期: **Phase 2 着手時**に判断する（Phase 2 で個体の見分けがつくようになると追跡の必要性が上がる）
 
+### `prefers-reduced-motion` がカメラの慣性に効いていない
+
+- 検出: Phase 1 後 / ソース解説中に発見
+- 内容: 仕様書 §13「`prefers-reduced-motion` を尊重する」への対応が `app/index.css` のメディアクエリだけになっている。これは CSS のアニメーションとトランジションにしか効かず、以下は対象外
+  - `CameraRig.tsx` の `enableDamping` / `dampingFactor`（JavaScript による慣性）
+  - 3D空間内の動き全般（蟻の移動そのもの）
+- 影響: 動きに敏感な利用者が設定を有効にしても、カメラの減速アニメーションは残る
+- 検討事項: 蟻の移動まで止めるとシミュレーションとして成立しない。対象を「カメラの慣性」に限るのが妥当と考えられる
+- 対応時期: **Phase 5**（アクセシビリティ対応をまとめて行うPhase）
+- 方針: `window.matchMedia('(prefers-reduced-motion: reduce)')` を参照し、有効なら `enableDamping` を false にする。設定変更の監視（`addEventListener('change')`）も行う
+
 ## 対応済み
 
 （なし）
